@@ -118,6 +118,21 @@ class DashboardDataTests(TestCase):
         self.assertGreater(payload["serie"][0]["algas"], 0.07)  # A680 - A590 com 50% e 60%
         self.assertEqual(payload["leituras"][0]["estado"], "Saturada")
 
+    def test_turbidity_from_colors_when_the_esp32_does_not_send_it(self):
+        collection = Coleta.objects.create(data_coleta=date(2026, 10, 20))
+        Leitura.objects.create(
+            collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.make_aware(datetime(2026, 10, 20, 10, 0)), ganho=64, atime=0, astep=0, n=1,
+            saturado=False, media={channel: 1000 for channel in CHANNELS}, desvio={}, dados_originais={},
+            turbidez={"ntu": None, "tensao_v": None, "classificacao": "TURVA"},
+            cores=[{"nome": "x", "comprimento_onda_nm": 0, "valor": 0, "porcentagem": 64} for _ in range(8)],
+            diagnostico={"contaminacao_pct": 20},
+        )
+
+        payload = self.client.get(reverse("dashboard_data"), {"data": "2026-10-20"}).json()
+
+        self.assertAlmostEqual(payload["chart_data"][0]["turbidez"], 36.0)  # 1 - 0,64
+
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
 

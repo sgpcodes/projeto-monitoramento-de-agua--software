@@ -87,8 +87,10 @@ def _indices(leitura, metricas):
     turbidez = leitura.turbidez or {}
 
     luz_bloqueada = turbidez.get("luz_bloqueada_pct")
-    if luz_bloqueada is None and metricas.get("turbidez") is not None:
-        luz_bloqueada = metricas["turbidez"] * 100
+    if luz_bloqueada is None and porcentagens[5] is not None and porcentagens[6] is not None:
+        # Mesma conta do ESP32: luz bloqueada no amarelo 590 e laranja 630 nm.
+        fracao = math.sqrt(max(porcentagens[5], 0) / 100 * max(porcentagens[6], 0) / 100)
+        luz_bloqueada = min(100.0, max(0.0, (1 - fracao) * 100))
     contaminacao = diagnostico.get("contaminacao_pct")
     if contaminacao is None and metricas.get("contaminacao") is not None:
         contaminacao = metricas["contaminacao"] * 100
