@@ -8,23 +8,6 @@
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const fmt = (n, d) => Number(n).toLocaleString("pt-BR", d == null ? {} : { maximumFractionDigits: d });
 
-  /* ---------- dados de demonstração (apresentação) ---------- */
-  const bands = [["Violeta", 415, 2394, 57], ["Azul", 445, 4802, 49], ["Ciano", 480, 4576, 52], ["Verde", 515, 4860, 54],
-    ["Verde-amarelo", 555, 5225, 55], ["Amarelo", 590, 4920, 60], ["Laranja", 630, 3965, 65], ["Vermelho", 680, 1404, 54]];
-  const cores = bands.map(([nome, nm, valor, pct]) => ({ nome, comprimento_onda_nm: nm, valor, porcentagem: pct }));
-  const lbl = bands.map((b) => String(b[1])), vals = bands.map((b) => b[2]), pcts = bands.map((b) => b[3]);
-  const presentationSample = {
-    data: "2026-10-20", atualizado_em: "2026-10-20T14:02:10-03:00", total_leituras: 1, total_amostras: 1, estouradas: 0,
-    ultima_leitura: "14:02", demo: true, cores,
-    turbidez: { ntu: 18.4, tensao_v: 4.12, classificacao: "LEVEMENTE TURVA" },
-    diagnostico: { turbidez: "LEVEMENTE TURVA", algas: "SINAL FRACO", cor: "NORMAL", contaminacao_pct: 20,
-      contaminacao: "LEVEMENTE CONTAMINADA", resumo: "Água levemente turva, com sinal fraco de algas e cor normal." },
-    leituras: [{ hora: "14:02:10", amostra: "lagoa", tipo: "amostra", tipo_display: "Amostra", led: "—", replica: "—", turbidez: 18.4, turbidez_unidade: "NTU", saturado: false }],
-    chart_data: [{ hora: "14:02", amostra: "lagoa", turbidez: 18.4 }],
-    espectro: { rotulos: lbl, etiquetas: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"], unidade: "Contagem digital", semanas: [{ data: "2026-10-20", valores: vals, porcentagens: pcts }] },
-    live: { rotulos: lbl, valores: vals, porcentagens: pcts },
-  };
-
   /* ---------- utilitários SVG ---------- */
   const addSVG = (parent, tag, attrs = {}) => {
     const el = document.createElementNS(SVG_NS, tag);
@@ -96,7 +79,7 @@
     const x = (i) => m.l + (values.length === 1 ? pw / 2 : (i / (values.length - 1)) * pw);
     const y = (v) => m.t + ((max - v) / (max - min)) * ph;
     const counts = sp.unidade === "Contagem digital";
-    if ($("spectrum-description")) $("spectrum-description").textContent = `${sp.unidade || "Absorbância (u.a.)"} por comprimento de onda (nm)${data.demo ? " · dados de demonstração" : ""}.`;
+    if ($("spectrum-description")) $("spectrum-description").textContent = `${sp.unidade || "Absorbância (u.a.)"} por comprimento de onda (nm).`;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
       const v = max - ((max - min) * i) / 4, ly = y(v);
@@ -252,9 +235,6 @@
     renderReadings(data); renderTurbidityChart(data.chart_data || []); renderSpectrumChart(data); renderLiveChart(data); renderColetasTable();
     firstRender = false;
   }
-  const withSample = (d) => (d?.data === presentationSample.data && d.total_leituras === 0 && shell?.dataset.selectedDate === presentationSample.data
-    ? { ...presentationSample, atualizado_em: d.atualizado_em } : d);
-
   setChartState("series-wrap", "series-empty", false);
   setChartState("scatter-wrap", "scatter-empty", false);
   const seg = document.querySelector(".segmented"); if (seg) seg.hidden = true;
@@ -291,13 +271,13 @@
     try {
       const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      renderDashboard(withSample(await r.json()));
+      renderDashboard(await r.json());
     } catch (e) {
       if ($("data-updated")) $("data-updated").textContent = "falha na sincronização; tentando novamente";
       console.error("Não foi possível atualizar o painel.", e);
     }
   }
-  renderDashboard(withSample(readJSON("dashboard-data")));
+  renderDashboard(readJSON("dashboard-data"));
   setInterval(refresh, 15000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 
