@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure--b9%s+i!ee0=&-)9x!a5=&c=vfds@%s2$(!6+b75pb&b098s_t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "monitoramento-agua.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
