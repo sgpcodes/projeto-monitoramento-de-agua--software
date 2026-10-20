@@ -183,10 +183,24 @@
                 <span class="kpi-note">{% if ultima_leitura %}horário da medição mais recente{% else %}sem medições nesta data{% endif %}</span>
               </div>
             </article>
+
+            <article class="kpi-card" data-tilt data-reveal>
+              <div class="kpi-top">
+                <span class="kpi-label">Contaminação</span>
+                <span class="kpi-icon icon-rose" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>
+                </span>
+              </div>
+              <strong class="kpi-value" id="kpi-contaminacao">—</strong>
+              <div class="kpi-foot">
+                <span class="kpi-badge" id="kpi-contaminacao-badge" data-state="ok">—</span>
+                <span class="kpi-note">escala de contaminação</span>
+              </div>
+            </article>
           </section>
 
           <section class="demo-notice" id="demo-notice" aria-live="polite">
-            <span class="demo-badge">DEMONSTRAÇÃO</span>
+            <span class="demo-badge">DADOS DE EXEMPLO</span>
             <span class="demo-text">Os gráficos de espectro, evolução, validação, leitura ao vivo e a tabela de coletas exibem dados de exemplo até a API passar os <code>json_script</code> correspondentes.</span>
           </section>
 
@@ -222,8 +236,15 @@
                   <button type="button" role="tab" class="seg-btn" data-index="secchi" aria-selected="false">Transparência</button>
                 </div>
               </div>
-              <div class="chart-wrap">
+              <div class="chart-wrap" id="series-wrap">
                 <svg id="series-chart" class="chart" role="img" aria-label="Evolução semanal do índice selecionado"></svg>
+              </div>
+              <div class="chart-empty" id="series-empty" hidden>
+                <span class="empty-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h17M7 15l4-4 3 2 5-6"/></svg>
+                </span>
+                <strong>Ainda não há série histórica</strong>
+                <span>O gráfico aparece automaticamente quando existirem pelo menos duas medições.</span>
               </div>
             </section>
 
@@ -235,8 +256,15 @@
                   <p>Cada ponto é uma coleta. Se os pontos descem, o sensor concorda com o disco de Secchi.</p>
                 </div>
               </div>
-              <div class="chart-wrap">
+              <div class="chart-wrap" id="scatter-wrap">
                 <svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão de turbidez por transparência"></svg>
+              </div>
+              <div class="chart-empty" id="scatter-empty" hidden>
+                <span class="empty-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><circle cx="8" cy="16" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="17" cy="14" r="2"/><path d="M3 21h18M3 3v18"/></svg>
+                </span>
+                <strong>Falta a transparência (Secchi)</strong>
+                <span>O gráfico aparece quando as coletas tiverem a medida do disco de Secchi.</span>
               </div>
             </section>
           </div>
@@ -403,12 +431,13 @@
     {{ chart_data|json_script:"chart-data" }}
 
     {# json_script opcionais — se a view passar, o JS usa os dados reais; #}
-    {# se não passar, o JS cai nos mocks internos.                         #}
+    {# se não passar, o JS cai nos dados internos de exemplo.              #}
     {% if indices %}{{ indices|json_script:"indices-data" }}{% endif %}
     {% if espectro %}{{ espectro|json_script:"espectro-data" }}{% endif %}
     {% if serie %}{{ serie|json_script:"serie-data" }}{% endif %}
     {% if dispersao %}{{ dispersao|json_script:"scatter-data" }}{% endif %}
     {% if leitura_ao_vivo %}{{ leitura_ao_vivo|json_script:"live-data" }}{% endif %}
     {% if coletas %}{{ coletas|json_script:"coletas-data" }}{% endif %}
+    {% if diagnostico %}{{ diagnostico|json_script:"diagnostico-data" }}{% endif %}
   </body>
 </html>
