@@ -60,6 +60,7 @@ NOMES_CORES = ["Violeta", "Azul", "Ciano", "Verde", "Verde-amarelo", "Amarelo", 
 INTERVALO_MIN = 10  # graficos do dia: media a cada 10 minutos
 OFFLINE_MIN = 3  # sem leitura nova ha mais que isso: aparelho parado
 SUSPEITA_PCT = 110  # mais luz que na agua limpa: luz de fora ou lanterna mexida
+LUZ_FRACA = 1000  # canal CLEAR abaixo disso: sinal fraco demais (mesmo limite do ESP32)
 
 
 def _porcentagens(leitura, metricas):
@@ -86,8 +87,11 @@ def _indices(leitura, metricas):
     diagnostico = leitura.diagnostico or {}
     turbidez = leitura.turbidez or {}
 
+    pouca_luz = (leitura.media or {}).get("clear") is not None and leitura.media["clear"] < LUZ_FRACA
     luz_bloqueada = turbidez.get("luz_bloqueada_pct")
-    if luz_bloqueada is None and porcentagens[5] is not None and porcentagens[6] is not None:
+    # So calcula pelas cores se o ESP32 nao mandou o campo (firmware antigo) e tem luz.
+    if ("luz_bloqueada_pct" not in turbidez and not pouca_luz
+            and porcentagens[5] is not None and porcentagens[6] is not None):
         # Mesma conta do ESP32: luz bloqueada no amarelo 590 e laranja 630 nm.
         fracao = math.sqrt(max(porcentagens[5], 0) / 100 * max(porcentagens[6], 0) / 100)
         luz_bloqueada = min(100.0, max(0.0, (1 - fracao) * 100))
@@ -108,7 +112,9 @@ def _indices(leitura, metricas):
             if None in (absorb[5], absorb[6], absorb[7])
             else absorb[6] - (absorb[5] + absorb[7]) / 2
         ),
+        "pouca_luz": pouca_luz,
         "suspeita": bool(leitura.saturado)
+        or pouca_luz
         or any(p is not None and p > SUSPEITA_PCT for p in porcentagens),
     }
 
@@ -133,6 +139,8 @@ def _desvio(valores):
 def _estado(leitura, indices):
     if leitura.saturado:
         return "Saturada"
+    if indices["pouca_luz"]:
+        return "Pouca luz"
     return "Suspeita" if indices["suspeita"] else "Normal"
 
 
@@ -239,7 +247,7 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
             obs.append(f"Turbidez: {turb:.0f}% da luz bloqueada pelas partículas "
                        f"(nível {_nivel(turb, FAIXAS['particulas']).lower()}).")
     if suspeitas:
-        obs.append(f"{suspeitas} leituras suspeitas hoje (sensor estourado ou luz de fora) ficaram fora dos gráficos.")
+        obs.append(f"{suspeitas} leituras suspeitas hoje (pouca luz no sensor, sensor estourado ou luz de fora) ficaram fora dos gráficos.")
     return obs
 
 

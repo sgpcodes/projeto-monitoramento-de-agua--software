@@ -42,7 +42,7 @@ class DashboardDataTests(TestCase):
         Leitura.objects.create(
             **common,
             tipo="branco",
-            media={channel: 100 for channel in CHANNELS},
+            media={channel: 10000 for channel in CHANNELS},
         )
         Leitura.objects.create(
             **{
@@ -50,7 +50,7 @@ class DashboardDataTests(TestCase):
                 "medido_em": timezone.make_aware(datetime(2026, 10, 20, 10, 1)),
             },
             tipo="amostra",
-            media={channel: 50 for channel in CHANNELS},
+            media={channel: 5000 for channel in CHANNELS},
         )
 
         response = self.client.get(
@@ -83,7 +83,7 @@ class DashboardDataTests(TestCase):
                 astep=0,
                 n=1,
                 saturado=saturado,
-                media={channel: 1000 for channel in CHANNELS},
+                media={channel: 20000 for channel in CHANNELS},
                 desvio={},
                 dados_originais={},
                 turbidez={"ntu": None, "tensao_v": None, "luz_bloqueada_pct": 40.0, "classificacao": "MUITO TURVA"},
@@ -131,7 +131,7 @@ class DashboardDataTests(TestCase):
         Leitura.objects.create(
             collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
             medido_em=timezone.make_aware(datetime(2026, 10, 20, 10, 0)), ganho=64, atime=0, astep=0, n=1,
-            saturado=False, media={channel: 1000 for channel in CHANNELS}, desvio={}, dados_originais={},
+            saturado=False, media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
             turbidez={"ntu": None, "tensao_v": None, "classificacao": "TURVA"},
             cores=[{"nome": "x", "comprimento_onda_nm": 0, "valor": 0, "porcentagem": 64} for _ in range(8)],
             diagnostico={"contaminacao_pct": 20},
@@ -140,6 +140,23 @@ class DashboardDataTests(TestCase):
         payload = self.client.get(reverse("dashboard_data"), {"data": "2026-10-20"}).json()
 
         self.assertAlmostEqual(payload["chart_data"][0]["turbidez"], 36.0)  # 1 - 0,64
+
+    def test_low_light_readings_are_not_turbidity(self):
+        collection = Coleta.objects.create(data_coleta=date(2026, 10, 20))
+        Leitura.objects.create(
+            collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.make_aware(datetime(2026, 10, 20, 10, 0)), ganho=64, atime=0, astep=0, n=1,
+            saturado=False, media={**{channel: 50 for channel in CHANNELS}, "clear": 300}, desvio={},
+            dados_originais={}, turbidez={"ntu": None, "tensao_v": None, "luz_bloqueada_pct": None, "classificacao": "SEM LEITURA"},
+            cores=[{"nome": "x", "comprimento_onda_nm": 0, "valor": 0, "porcentagem": 0.5} for _ in range(8)],
+            diagnostico={"contaminacao_pct": 130},
+        )
+
+        payload = self.client.get(reverse("dashboard_data"), {"data": "2026-10-20"}).json()
+
+        self.assertEqual(payload["suspeitas"], 1)
+        self.assertEqual(payload["chart_data"], [])  # nao vira "99% de turbidez"
+        self.assertEqual(payload["leituras"][0]["estado"], "Pouca luz")
 
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
