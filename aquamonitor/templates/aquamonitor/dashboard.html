@@ -1,485 +1,174 @@
 {% load static %}
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f3fbfc" id="theme-color">
-    <meta name="description" content="AquaMonitor · Qualidade da água medida com luz. Espectrofotômetro de baixo custo com ESP32 + AS7341. Universidade de Vassouras · Engenharia de Software · Maricá.">
-    <title>Visão geral · AquaMonitor</title>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#eefbfd">
+<meta name="description" content="AquaMonitor: qualidade da água medida com luz. ESP32 + AS7341. Universidade de Vassouras, Engenharia de Software, Maricá.">
+<title>AquaMonitor · Visão geral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'aquamonitor/css/dashboard.css' %}">
+<script src="{% static 'aquamonitor/js/dashboard.js' %}" defer></script>
+</head>
+<body>
+<div class="depth-bg" aria-hidden="true"></div>
+<canvas id="bubbles" aria-hidden="true"></canvas>
+<div class="progress" aria-hidden="true"></div>
+<div class="gauge" aria-hidden="true"><span class="gauge-track"><i></i></span><b id="gauge-m">0 m</b></div>
+<div id="tip" role="tooltip" hidden></div>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<div class="app-shell"
+     data-health-url="{% url 'health' %}"
+     data-dashboard-url="{% url 'dashboard_data' %}"
+     data-selected-date="{{ data_selecionada|date:'Y-m-d' }}">
 
-    <script>
-      try {
-        if (localStorage.getItem("aquamonitor-theme") === "dark") {
-          document.documentElement.dataset.theme = "dark";
-        }
-      } catch (error) {
-        console.warn("Não foi possível recuperar a preferência de tema.", error);
-      }
-    </script>
-    <link rel="stylesheet" href="{% static 'aquamonitor/css/dashboard.css' %}">
-    <script src="{% static 'aquamonitor/js/dashboard.js' %}" defer></script>
-  </head>
-  <body>
-    <div class="app-shell"
-         data-health-url="{% url 'health' %}"
-         data-dashboard-url="{% url 'dashboard_data' %}"
-         data-selected-date="{{ data_selecionada|date:'Y-m-d' }}">
+<header class="nav">
+  <a class="brand" href="{% url 'dashboard' %}" aria-label="AquaMonitor, início">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="currentColor"/></svg>
+    <strong>AquaMonitor</strong>
+  </a>
+  <nav class="nav-links" aria-label="Navegação principal">
+    <a class="nav-link is-active" href="#overview">Visão geral</a>
+    <a class="nav-link" href="#espectro">Espectro</a>
+    <a class="nav-link" href="#evolucao">Evolução</a>
+    <a class="nav-link" href="#coletas">Coletas</a>
+    <a class="nav-link" href="#readings">Leituras</a>
+  </nav>
+  <div class="nav-status" aria-live="polite">
+    <span class="status-dot is-offline" id="health-indicator"></span>
+    <span id="health-label">Verificando conexão…</span>
+    <strong id="live-clock">--:--:--</strong>
+  </div>
+</header>
 
-      <aside class="sidebar" aria-label="Navegação principal">
-        <a class="brand" href="{% url 'dashboard' %}" aria-label="AquaMonitor, página inicial" data-magnetic>
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none">
-              <path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="currentColor"/>
-              <path d="M11.5 20.5a4.5 4.5 0 0 0 4.5 4.5" stroke="#04121a" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span class="brand-copy">
-            <strong>AquaMonitor</strong>
-            <small>Qualidade da água</small>
-          </span>
-        </a>
-
-        <p class="nav-caption">MENU PRINCIPAL</p>
-        <nav class="nav-links">
-          <a class="nav-link is-active" href="#overview" data-magnetic>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
-            Visão geral
-          </a>
-          <a class="nav-link" href="#espectro" data-magnetic>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c2.5 0 2.5-10 5-10s2.5 10 5 10 2.5-10 5-10 2.5 10 3 10"/></svg>
-            Espectro
-          </a>
-          <a class="nav-link" href="#evolucao" data-magnetic>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h17M7 15l4-4 3 2 5-6"/></svg>
-            Evolução
-          </a>
-          <a class="nav-link" href="#coletas" data-magnetic>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-            Coletas
-          </a>
-          <a class="nav-link" href="#readings" data-magnetic>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h12M8 12h12M8 19h12"/><path d="M3.5 5h.01M3.5 12h.01M3.5 19h.01"/></svg>
-            Leituras
-          </a>
-        </nav>
-
-        <div class="sidebar-spacer"></div>
-
-        <div class="system-status" aria-live="polite">
-          <span class="status-dot is-offline" id="health-indicator" aria-hidden="true"></span>
-          <div>
-            <strong>API</strong>
-            <span id="health-label">Verificando conexão…</span>
+<main id="overview">
+  <section class="hero" aria-label="Apresentação do projeto">
+    <div class="hero-stick">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot dot-live"></span>Medindo agora na lagoa de Maricá</p>
+        <h1>Qualidade da água,<br><span class="grad-text">medida com luz.</span></h1>
+        <p class="hero-description">Um espectrofotômetro de baixo custo com <strong>ESP32 + sensor AS7341</strong>. Cada amostra vira dados na internet e aparece aqui: cor, algas, turbidez e a evolução ao longo das semanas.</p>
+        <form class="date-filter" method="get" action="{% url 'dashboard' %}">
+          <label for="data">Data da coleta</label>
+          <div class="date-control">
+            <input id="data" name="data" type="date" value="{{ data_selecionada|date:'Y-m-d' }}">
+            <button type="submit">Ver coleta</button>
           </div>
+        </form>
+        <p class="scroll-hint">Role para mergulhar nos dados</p>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="ring ring-a"></div><div class="ring ring-b"></div><div class="ring ring-c"></div>
+        <svg class="drop" viewBox="0 0 64 80"><defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe3ea"/><stop offset="1" stop-color="#1a9fc0"/></linearGradient></defs><path d="M32 4C22 20 8 34 8 50a24 24 0 0 0 48 0C56 34 42 20 32 4Z" fill="url(#dg)"/><path d="M20 52a12 12 0 0 0 12 12" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+      </div>
+    </div>
+    <svg class="waves" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+      <path class="w1" d="M0 80C240 20 480 140 720 80S1200 20 1440 80V160H0Z"/>
+      <path class="w2" d="M0 100C240 60 480 150 720 100S1200 60 1440 100V160H0Z"/>
+    </svg>
+  </section>
+
+  <div class="page-content">
+    <section class="kpi-grid" aria-label="Resumo da coleta">
+      <article class="kpi-card" data-reveal><span class="kpi-label">Total de leituras</span><strong class="kpi-value" data-count="{{ total_leituras|default:0 }}">{{ total_leituras }}</strong><span class="kpi-note">registros nesta coleta</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Amostras analisadas</span><strong class="kpi-value" data-count="{{ total_amostras|default:0 }}">{{ total_amostras }}</strong><span class="kpi-note">amostras distintas</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Leituras saturadas</span><strong class="kpi-value" data-count="{{ estouradas|default:0 }}">{{ estouradas }}</strong><span class="kpi-note">sinal no limite do sensor</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Última leitura</span><strong class="kpi-value kpi-value-time">{% if ultima_leitura %}{{ ultima_leitura.medido_em|date:"H:i" }}{% else %}—{% endif %}</strong><span class="kpi-note">{% if ultima_leitura %}medição mais recente{% else %}sem medições nesta data{% endif %}</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
+    </section>
+
+    <section class="sample-analysis" id="sample-analysis" aria-label="Diagnóstico da amostra" hidden data-reveal>
+      <div class="sample-head">
+        <div><p class="panel-kicker">Amostra <span id="sample-name">—</span></p><h2>Leitura e diagnóstico</h2></div>
+        <span class="sample-time">Medida às <strong id="sample-time">—</strong></span>
+      </div>
+      <div class="sample-metrics">
+        <article class="sample-metric"><span>Turbidez</span><strong id="sample-turbidity">—</strong><small id="sample-turbidity-class">—</small></article>
+        <article class="sample-metric"><span>Sinal do sensor</span><strong id="sample-voltage">—</strong><small>tensão</small></article>
+        <article class="sample-metric"><span>Algas</span><strong id="sample-algae">—</strong><small>indicador espectral</small></article>
+        <article class="sample-metric"><span>Cor</span><strong id="sample-color">—</strong><small>classificação</small></article>
+        <article class="sample-metric sample-contamination"><span>Contaminação estimada</span><strong id="sample-contamination">—</strong><small id="sample-contamination-class">—</small></article>
+      </div>
+      <p class="sample-summary" id="sample-summary"></p>
+    </section>
+
+    <section class="sync" id="sync-notice" aria-live="polite" data-reveal>
+      <span class="sync-badge" id="sync-badge">Sincronização</span>
+      <span><span id="sync-message">Leituras reais do ESP32 aparecem automaticamente aqui.</span> Última atualização: <strong id="data-updated">aguardando…</strong></span>
+    </section>
+
+    <section class="panel" id="espectro" data-reveal>
+      <div class="panel-heading">
+        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Leituras do sensor por comprimento de onda (nm).</p></div>
+        <div class="spectrum-legend" aria-label="Canais espectrais">
+          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
         </div>
-        <p class="sidebar-footnote">Universidade de Vassouras <span>·</span> Engenharia de Software</p>
-      </aside>
+      </div>
+      <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
+      <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
+    </section>
 
-      <main class="main-content">
-        <header class="topbar">
-          <div class="breadcrumb"><span>Monitoramento</span><span aria-hidden="true">/</span><strong>Visão geral</strong></div>
-          <div class="topbar-date">
-            <span class="live-indicator" aria-hidden="true"></span>
-            <span>Horário local</span>
-            <strong id="live-clock">--:--:--</strong>
-          </div>
-          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Ativar tema escuro" aria-pressed="false">
-            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
-            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/><path d="M16 3v4m-2-2h4"/></svg>
-            <span class="theme-toggle-label">Tema escuro</span>
-          </button>
-        </header>
-
-        <div class="page-content" id="overview">
-
-          <section class="hero" aria-label="Apresentação do projeto">
-            <div class="hero-copy">
-              <p class="eyebrow" data-reveal><span class="eyebrow-dot"></span> PLATAFORMA DE MONITORAMENTO</p>
-              <h1 data-reveal>Qualidade da água<br><span class="grad-text">medida com luz.</span></h1>
-              <p class="hero-description" data-reveal>
-                Espectrofotômetro de baixo custo com <strong>ESP32 + sensor AS7341</strong>.
-                Toda semana medimos uma amostra nova da lagoa de Maricá, os dados vão para a internet
-                e aparecem aqui — cor, algas, turbidez e como tudo muda com o tempo.
-              </p>
-              <div class="hero-meta" data-reveal>
-                <span><i class="dot dot-live" aria-hidden="true"></i> API monitorada</span>
-                <span class="hero-divider" aria-hidden="true"></span>
-                <span>Coleta de {{ data_selecionada|date:"d/m/Y" }}</span>
-                <span class="hero-divider" aria-hidden="true"></span>
-                <span>Maricá · RJ</span>
-              </div>
-
-              <form class="date-filter" method="get" action="{% url 'dashboard' %}" data-reveal>
-                <label for="data">Data da coleta</label>
-                <div class="date-control">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-                  <input id="data" name="data" type="date" value="{{ data_selecionada|date:'Y-m-d' }}">
-                  <button type="submit" data-magnetic>Aplicar</button>
-                </div>
-              </form>
-            </div>
-
-            <div class="hero-visual" aria-hidden="true">
-              <div class="orb orb-a"></div>
-              <div class="orb orb-b"></div>
-              <div class="orb orb-c"></div>
-              <div class="hero-ring hero-ring-outer"></div>
-              <div class="hero-ring hero-ring-inner"></div>
-              <div class="hero-core">
-                <svg viewBox="0 0 64 64" fill="none">
-                  <path d="M32 7C24.7 18.2 14 29.4 14 40a18 18 0 0 0 36 0C50 29.4 39.3 18.2 32 7Z" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M23 41c.7 4.6 4.4 8 9 8m-6-18 5 5 10-11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="hero-readout readout-top"><span>DATA STREAM</span><strong>JSON <i>•</i> REST</strong></div>
-              <div class="hero-readout readout-bottom"><span>ANÁLISE</span><strong>INDICADORES DA COLETA</strong></div>
-            </div>
-          </section>
-
-          <section class="kpi-grid" aria-label="Resumo da coleta">
-            <article class="kpi-card" data-tilt data-reveal>
-              <div class="kpi-top">
-                <span class="kpi-label">Total de leituras</span>
-                <span class="kpi-icon icon-cyan" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7"/></svg>
-                </span>
-              </div>
-              <strong class="kpi-value" data-count="{{ total_leituras|default:0 }}">{{ total_leituras }}</strong>
-              <div class="kpi-foot">
-                <span class="kpi-note">registros nesta coleta</span>
-              </div>
-            </article>
-
-            <article class="kpi-card" data-tilt data-reveal>
-              <div class="kpi-top">
-                <span class="kpi-label">Amostras analisadas</span>
-                <span class="kpi-icon icon-green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M9 3h6m-5 0v6l-5.5 9.2A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.8L14 9V3M8 15h8"/></svg>
-                </span>
-              </div>
-              <strong class="kpi-value" data-count="{{ total_amostras|default:0 }}">{{ total_amostras }}</strong>
-              <div class="kpi-foot">
-                <span class="kpi-note">amostras distintas</span>
-              </div>
-            </article>
-
-            <article class="kpi-card" data-tilt data-reveal>
-              <div class="kpi-top">
-                <span class="kpi-label">Leituras saturadas</span>
-                <span class="kpi-icon icon-amber" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>
-                </span>
-              </div>
-              <strong class="kpi-value" data-count="{{ estouradas|default:0 }}">{{ estouradas }}</strong>
-              <div class="kpi-foot">
-                <span class="kpi-note">sinal no limite do sensor</span>
-              </div>
-            </article>
-
-            <article class="kpi-card" data-tilt data-reveal>
-              <div class="kpi-top">
-                <span class="kpi-label">Última leitura</span>
-                <span class="kpi-icon icon-violet" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-                </span>
-              </div>
-              <strong class="kpi-value kpi-value-time">{% if ultima_leitura %}{{ ultima_leitura.medido_em|date:"H:i" }}{% else %}—{% endif %}</strong>
-              <div class="kpi-foot">
-                <span class="kpi-note">{% if ultima_leitura %}horário da medição mais recente{% else %}sem medições nesta data{% endif %}</span>
-              </div>
-            </article>
-
-            <article class="kpi-card" data-tilt data-reveal>
-              <div class="kpi-top">
-                <span class="kpi-label">Contaminação</span>
-                <span class="kpi-icon icon-rose" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>
-                </span>
-              </div>
-              <strong class="kpi-value" id="kpi-contaminacao">—</strong>
-              <div class="kpi-foot">
-                <span class="kpi-badge" id="kpi-contaminacao-badge" data-state="ok">—</span>
-                <span class="kpi-note">escala de contaminação</span>
-              </div>
-            </article>
-          </section>
-
-          <section class="sample-analysis" id="sample-analysis" aria-label="Diagnóstico da amostra" hidden>
-            <div class="sample-analysis-heading">
-              <div>
-                <p class="panel-kicker">AMOSTRA · <span id="sample-name">—</span></p>
-                <h2>Leitura e diagnóstico</h2>
-              </div>
-              <span class="sample-analysis-time">Medida às <strong id="sample-time">—</strong></span>
-            </div>
-            <div class="sample-metrics">
-              <article class="sample-metric">
-                <span>Turbidez</span>
-                <strong id="sample-turbidity">—</strong>
-                <small id="sample-turbidity-class">—</small>
-              </article>
-              <article class="sample-metric">
-                <span>Sinal do sensor</span>
-                <strong id="sample-voltage">—</strong>
-                <small>tensão</small>
-              </article>
-              <article class="sample-metric">
-                <span>Algas</span>
-                <strong id="sample-algae">—</strong>
-                <small>indicador espectral</small>
-              </article>
-              <article class="sample-metric">
-                <span>Cor</span>
-                <strong id="sample-color">—</strong>
-                <small>classificação</small>
-              </article>
-              <article class="sample-metric sample-contamination">
-                <span>Contaminação estimada</span>
-                <strong id="sample-contamination">—</strong>
-                <small id="sample-contamination-class">—</small>
-              </article>
-            </div>
-            <p class="sample-summary" id="sample-summary"></p>
-          </section>
-
-          <section class="demo-notice" id="sync-notice" aria-live="polite">
-            <span class="demo-badge" id="sync-badge">SINCRONIZAÇÃO</span>
-            <span class="demo-text"><span id="sync-message">Leituras reais recebidas pelo ESP32 aparecem automaticamente aqui.</span> Atualização do painel: <strong id="data-updated">aguardando…</strong></span>
-          </section>
-
-          <section class="panel chart-panel" id="espectro" data-reveal>
-            <div class="panel-heading">
-              <div>
-                <p class="panel-kicker">ESPECTRO</p>
-                <h2>Assinatura espectral atual</h2>
-                <p id="spectrum-description">Leituras do sensor por comprimento de onda (nm).</p>
-              </div>
-              <div class="panel-legend spectrum-legend" aria-label="Canais espectrais">
-                <span class="legend-item"><i style="--channel-color:#7952c7"></i>F1 · 415</span>
-                <span class="legend-item"><i style="--channel-color:#4c78ed"></i>F2 · 445</span>
-                <span class="legend-item"><i style="--channel-color:#18a6d5"></i>F3 · 480</span>
-                <span class="legend-item"><i style="--channel-color:#21b98a"></i>F4 · 515</span>
-                <span class="legend-item"><i style="--channel-color:#94bf36"></i>F5 · 555</span>
-                <span class="legend-item"><i style="--channel-color:#e8a926"></i>F6 · 590</span>
-                <span class="legend-item"><i style="--channel-color:#ed7845"></i>F7 · 630</span>
-                <span class="legend-item"><i style="--channel-color:#e34e5a"></i>F8 · 680</span>
-              </div>
-            </div>
-            <div class="chart-wrap chart-wrap-tall" id="spectrum-wrap">
-              <svg id="spectrum-chart" class="chart" role="img" aria-label="Absorbância por canal de cor"></svg>
-            </div>
-            <div class="chart-empty" id="spectrum-empty" hidden>
-              <strong>Aguardando amostra calibrada</strong>
-              <span>O espectro será exibido quando houver uma leitura com calibração válida.</span>
-            </div>
-          </section>
-
-          <div class="two-col">
-            <section class="panel chart-panel" id="evolucao" data-reveal>
-              <div class="panel-heading">
-                <div>
-                  <p class="panel-kicker">EVOLUÇÃO</p>
-                  <h2>Semana a semana</h2>
-                  <p>Tendência do índice escolhido. Gota = semana com chuva.</p>
-                </div>
-                <div class="segmented" role="tablist" aria-label="Índice do gráfico de evolução">
-                  <button type="button" role="tab" class="seg-btn is-active" data-index="algas" aria-selected="true">Algas</button>
-                  <button type="button" role="tab" class="seg-btn" data-index="turbidez" aria-selected="false">Turbidez</button>
-                  <button type="button" role="tab" class="seg-btn" data-index="cor" aria-selected="false">Cor</button>
-                  <button type="button" role="tab" class="seg-btn" data-index="secchi" aria-selected="false">Transparência</button>
-                </div>
-              </div>
-              <div class="chart-wrap" id="series-wrap">
-                <svg id="series-chart" class="chart" role="img" aria-label="Evolução semanal do índice selecionado"></svg>
-              </div>
-              <div class="chart-empty" id="series-empty" hidden>
-                <span class="empty-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h17M7 15l4-4 3 2 5-6"/></svg>
-                </span>
-                <strong>Ainda não há série histórica</strong>
-                <span>O gráfico aparece automaticamente quando existirem pelo menos duas medições.</span>
-              </div>
-            </section>
-
-            <section class="panel chart-panel" id="validacao" data-reveal>
-              <div class="panel-heading">
-                <div>
-                  <p class="panel-kicker">VALIDAÇÃO</p>
-                  <h2>Turbidez × Transparência</h2>
-                  <p>Cada ponto é uma coleta. Se os pontos descem, o sensor concorda com o disco de Secchi.</p>
-                </div>
-              </div>
-              <div class="chart-wrap" id="scatter-wrap">
-                <svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão de turbidez por transparência"></svg>
-              </div>
-              <div class="chart-empty" id="scatter-empty" hidden>
-                <span class="empty-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><circle cx="8" cy="16" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="17" cy="14" r="2"/><path d="M3 21h18M3 3v18"/></svg>
-                </span>
-                <strong>Falta a transparência (Secchi)</strong>
-                <span>O gráfico aparece quando as coletas tiverem a medida do disco de Secchi.</span>
-              </div>
-            </section>
-          </div>
-
-          <div class="two-col">
-            <section class="panel chart-panel" data-reveal>
-              <div class="panel-heading">
-                <div>
-                  <p class="panel-kicker">BANCADA</p>
-                  <h2>Sinais da última amostra</h2>
-                  <p>Intensidade recebida em cada canal do sensor na leitura mais recente.</p>
-                </div>
-                <span class="pill-live"><i class="dot dot-live"></i> 8 CANAIS AS7341</span>
-              </div>
-              <div class="chart-wrap" id="live-wrap">
-                <svg id="live-chart" class="chart" role="img" aria-label="Leitura ao vivo por canal"></svg>
-              </div>
-              <div class="chart-empty" id="live-empty" hidden>
-                <strong>Aguardando leitura do sensor</strong>
-                <span>Os canais do AS7341 aparecem assim que uma amostra for recebida.</span>
-              </div>
-            </section>
-
-            <section class="panel chart-panel" id="chart-section" data-reveal>
-              <div class="panel-heading">
-                <div>
-                  <p class="panel-kicker">TEMPORAL</p>
-                  <h2>Turbidez ao longo do dia</h2>
-                  <p>Variação das medições de amostras na data selecionada.</p>
-                </div>
-                <span class="chart-legend"><i aria-hidden="true"></i>Turbidez</span>
-              </div>
-              <div class="chart-wrap" id="turbidity-wrap">
-                <svg id="turbidity-chart" class="chart" role="img" aria-label="Gráfico de turbidez por horário"></svg>
-              </div>
-              <div class="chart-empty" id="turbidity-empty" hidden>
-                <span class="empty-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h17M7 15l4-4 3 2 5-6"/></svg>
-                </span>
-                <strong>Sem dados para exibir</strong>
-                <span>As medições de amostras aparecerão aqui quando estiverem disponíveis.</span>
-              </div>
-            </section>
-          </div>
-
-          <section class="panel" id="coletas" data-reveal>
-            <div class="panel-heading">
-              <div>
-                <p class="panel-kicker">COLETAS</p>
-                <h2>Histórico de idas à lagoa</h2>
-                <p>Transparência (Secchi), chuva, temperatura, observação e foto.</p>
-              </div>
-              <span class="record-count"><strong id="coletas-count">0</strong> coletas</span>
-            </div>
-            <div class="table-scroll">
-              <table class="readings-table coletas-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Data</th>
-                    <th scope="col">Ponto</th>
-                    <th scope="col">Secchi</th>
-                    <th scope="col">Chuva 48h</th>
-                    <th scope="col">Temp.</th>
-                    <th scope="col">Observação</th>
-                    <th scope="col">Foto</th>
-                  </tr>
-                </thead>
-                <tbody id="coletas-body"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="panel readings-panel" id="readings" data-reveal>
-            <div class="panel-heading readings-heading">
-              <div>
-                <p class="panel-kicker">LEITURAS</p>
-                <h2>Registros recebidos</h2>
-                <p>Últimas leituras enviadas pelo ESP32 para a data selecionada.</p>
-              </div>
-              <span class="record-count"><strong id="visible-count">{{ leituras|length }}</strong> registros</span>
-            </div>
-            <div class="table-toolbar">
-              <label class="search-box" for="reading-search">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
-                <input id="reading-search" type="search" placeholder="Buscar amostra…" autocomplete="off">
-              </label>
-              <label class="select-label" for="sample-filter">Amostra
-                <select id="sample-filter">
-                  <option value="">Todas as amostras</option>
-                  {% for amostra in amostras %}<option value="{{ amostra }}">{{ amostra }}</option>{% endfor %}
-                </select>
-              </label>
-              <label class="select-label" for="type-filter">Tipo
-                <select id="type-filter">
-                  <option value="">Todos os tipos</option>
-                  <option value="amostra">Amostra</option>
-                  <option value="branco">Branco</option>
-                  <option value="escuro">Escuro</option>
-                </select>
-              </label>
-              <button class="export-button" id="export-csv" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg>
-                Exportar CSV
-              </button>
-            </div>
-            <div class="table-scroll">
-              <table class="readings-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Horário</th>
-                    <th scope="col">Amostra</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">LED</th>
-                    <th scope="col">Réplica</th>
-                    <th scope="col">Turbidez</th>
-                    <th scope="col">Estado</th>
-                  </tr>
-                </thead>
-                <tbody id="readings-body">
-                  {% for leitura in leituras %}
-                    <tr data-sample="{{ leitura.amostra|lower }}" data-type="{{ leitura.tipo }}">
-                      <td class="time-cell">{{ leitura.medido_em|date:"H:i:s" }}</td>
-                      <td class="sample-cell">{{ leitura.amostra }}</td>
-                      <td><span class="type-badge type-{{ leitura.tipo }}">{{ leitura.tipo }}</span></td>
-                      <td>{{ leitura.led }}</td>
-                      <td>{{ leitura.replica }}</td>
-                      <td class="numeric-cell">{{ leitura.metricas.turbidez|floatformat:3|default:"—" }}</td>
-                      <td>
-                        {% if leitura.saturado %}
-                          <span class="state-badge state-warning"><i aria-hidden="true"></i>Saturada</span>
-                        {% else %}
-                          <span class="state-badge state-ok"><i aria-hidden="true"></i>Normal</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-              <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros selecionados.</p>
-            </div>
-          </section>
-
-          <footer class="page-footer">
-            <div class="footer-brand">
-              <strong>AquaMonitor</strong>
-              <span>Qualidade da água medida com luz · ESP32 + AS7341</span>
-            </div>
-            <div class="footer-meta">
-              <span>Universidade de Vassouras · Engenharia de Software</span>
-              <span>Maricá · Outubro de 2026</span>
-              <span>Dados atualizados conforme as leituras recebidas.</span>
-            </div>
-          </footer>
-        </div>
-      </main>
+    <div class="two-col">
+      <section class="panel" id="evolucao" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Semana a semana</h2><p>Tendência do índice escolhido.</p></div>
+          <div class="segmented" role="tablist" aria-label="Índice do gráfico">
+            <button type="button" role="tab" class="seg-btn is-active" data-index="algas" aria-selected="true">Algas</button>
+            <button type="button" role="tab" class="seg-btn" data-index="turbidez" aria-selected="false">Turbidez</button>
+            <button type="button" role="tab" class="seg-btn" data-index="cor" aria-selected="false">Cor</button>
+            <button type="button" role="tab" class="seg-btn" data-index="secchi" aria-selected="false">Transparência</button>
+          </div></div>
+        <div class="chart-wrap" id="series-wrap"><svg id="series-chart" class="chart" role="img" aria-label="Evolução semanal"></svg></div>
+        <div class="chart-empty" id="series-empty" hidden><strong>Ainda não há série histórica</strong><span>O gráfico aparece com pelo menos duas medições.</span></div>
+      </section>
+      <section class="panel" id="validacao" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Turbidez × Transparência</h2><p>Cada ponto é uma coleta. Pontos descendo indicam que o sensor concorda com o disco de Secchi.</p></div></div>
+        <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão"></svg></div>
+        <div class="chart-empty" id="scatter-empty" hidden><strong>Falta a transparência (Secchi)</strong><span>O gráfico aparece quando as coletas tiverem essa medida.</span></div>
+      </section>
     </div>
 
-    {{ dashboard_data|json_script:"dashboard-data" }}
-  </body>
+    <div class="two-col">
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Sinais da última amostra</h2><p>Intensidade em cada canal do sensor.</p></div><span class="pill-live"><i class="dot dot-live"></i>8 canais AS7341</span></div>
+        <div class="chart-wrap" id="live-wrap"><svg id="live-chart" class="chart" role="img" aria-label="Leitura ao vivo por canal"></svg></div>
+        <div class="chart-empty" id="live-empty" hidden><strong>Aguardando leitura do sensor</strong><span>Os canais aparecem assim que uma amostra chegar.</span></div>
+      </section>
+      <section class="panel" id="chart-section" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>Medições de amostras na data selecionada.</p></div></div>
+        <div class="chart-wrap" id="turbidity-wrap"><svg id="turbidity-chart" class="chart" role="img" aria-label="Turbidez por horário"></svg></div>
+        <div class="chart-empty" id="turbidity-empty" hidden><strong>Sem dados para exibir</strong><span>As medições aparecerão aqui quando chegarem.</span></div>
+      </section>
+    </div>
+
+    <section class="panel" id="coletas" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Transparência (Secchi), chuva, temperatura, observação e foto.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
+      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Data</th><th>Ponto</th><th>Secchi</th><th>Chuva 48h</th><th>Temp.</th><th>Observação</th><th>Foto</th></tr></thead><tbody id="coletas-body"></tbody></table></div>
+    </section>
+
+    <section class="panel" id="readings" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Registros recebidos</h2><p>Últimas leituras enviadas pelo ESP32 na data selecionada.</p></div><span class="record-count"><strong id="visible-count">{{ leituras|length }}</strong> registros</span></div>
+      <div class="table-toolbar">
+        <label class="search-box" for="reading-search"><input id="reading-search" type="search" placeholder="Buscar amostra…" autocomplete="off"></label>
+        <label class="select-label" for="sample-filter">Amostra<select id="sample-filter"><option value="">Todas as amostras</option>{% for amostra in amostras %}<option value="{{ amostra }}">{{ amostra }}</option>{% endfor %}</select></label>
+        <label class="select-label" for="type-filter">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="amostra">Amostra</option><option value="branco">Branco</option><option value="escuro">Escuro</option></select></label>
+        <button class="export-button" id="export-csv" type="button">Exportar CSV</button>
+      </div>
+      <div class="table-scroll">
+        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>LED</th><th>Réplica</th><th>Turbidez</th><th>Estado</th></tr></thead>
+        <tbody id="readings-body">
+        {% for leitura in leituras %}<tr data-sample="{{ leitura.amostra|lower }}" data-type="{{ leitura.tipo }}"><td class="time-cell">{{ leitura.medido_em|date:"H:i:s" }}</td><td class="sample-cell">{{ leitura.amostra }}</td><td><span class="type-badge type-{{ leitura.tipo }}">{{ leitura.tipo }}</span></td><td>{{ leitura.led }}</td><td>{{ leitura.replica }}</td><td class="numeric-cell">{{ leitura.metricas.turbidez|floatformat:3|default:"—" }}</td><td>{% if leitura.saturado %}<span class="state-badge state-warning"><i></i>Saturada</span>{% else %}<span class="state-badge state-ok"><i></i>Normal</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+        <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
+      </div>
+    </section>
+
+    <footer class="page-footer"><strong>AquaMonitor</strong><span>Universidade de Vassouras, Engenharia de Software. Maricá, outubro de 2026.</span></footer>
+  </div>
+</main>
+</div>
+{{ dashboard_data|json_script:"dashboard-data" }}
+</body>
 </html>
