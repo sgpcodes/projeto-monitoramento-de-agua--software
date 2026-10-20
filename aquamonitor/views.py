@@ -1,12 +1,13 @@
 import math
-from datetime import date
+from datetime import date, timedelta
 
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
-from .models import Coleta
+from . import qualidade
+from .models import Coleta, Leitura
 from .serializers import CHANNELS
 from .services import calcular_metricas
 
@@ -80,7 +81,17 @@ def _absorbancia(porcentagem):
     return -math.log10(max(porcentagem, 0.1) / 100)
 
 
-def _indices(leitura, metricas):
+TENSAO_TRAVADA = 4.55  # V: acima disso o ADC do ESP32 travou no maximo (NTU nao vale)
+
+
+def _ntu_valido(turbidez):
+    ntu, tensao = turbidez.get("ntu"), turbidez.get("tensao_v")
+    if ntu is None or (tensao is not None and tensao >= TENSAO_TRAVADA):
+        return None
+    return ntu
+
+
+def _indices(leitura, metricas, branco=None):
     """Os numeros que contam a historia da agua, nas mesmas contas do ESP32."""
     porcentagens = _porcentagens(leitura, metricas)
     absorb = [_absorbancia(p) for p in porcentagens]
@@ -116,6 +127,9 @@ def _indices(leitura, metricas):
         "suspeita": bool(leitura.saturado)
         or pouca_luz
         or any(p is not None and p > SUSPEITA_PCT for p in porcentagens),
+        "qualidade": qualidade.indices(
+            porcentagens, _ntu_valido(turbidez), qualidade.absorbancia_nir(leitura, branco)
+        ),
     }
 
 
@@ -170,12 +184,7 @@ def _serie(lagoa):
 
 
 # Faixas dos indicadores (as mesmas do ESP32; cianobacterias e estimativa inicial).
-FAIXAS = {
-    "particulas": (15, 35),
-    "materia_organica": (0.03, 0.10),
-    "algas": (0.02, 0.08),
-    "cianobacterias": (0.02, 0.06),
-}
+FAIXAS = {"particulas": (15, 35)}  # % de luz bloqueada (sensor de cor), como no ESP32
 
 
 def _nivel(valor, faixa):
@@ -184,30 +193,42 @@ def _nivel(valor, faixa):
     return "Baixo" if valor < faixa[0] else "Moderado" if valor < faixa[1] else "Alto"
 
 
+COMO = {
+    "turbidez": "partículas: NTU do sensor de turbidez ou luz bloqueada em 590–630 nm",
+    "clorofila": "absorção extra no vermelho 680 nm em relação ao amarelo 590 nm",
+    "cianobacterias": "absorção extra no laranja 630 nm (ficocianina)",
+    "materia_organica": "absorção extra no violeta 415 nm em relação ao verde 555 nm (cor de chá)",
+    "sedimentos": "absorção no infravermelho (~910 nm): só partículas bloqueiam",
+}
+
+
 def _componentes(indices):
-    valores = {
-        "particulas": indices["turbidez"],
-        "materia_organica": indices["cor"],
-        "algas": indices["algas"],
-        "cianobacterias": indices["cianobacterias"],
-    }
-    textos = {
-        "particulas": ("Partículas suspensas (turbidez)", "luz bloqueada em 590–630 nm", "%"),
-        "materia_organica": ("Matéria orgânica dissolvida", "absorção extra no violeta 415 nm (vs. 555 nm)", ""),
-        "algas": ("Pigmentos de algas (clorofila)", "absorção extra no vermelho 680 nm (vs. 590 nm)", ""),
-        "cianobacterias": ("Pigmentos de cianobactérias", "absorção extra no laranja 630 nm (ficocianina)", ""),
-    }
-    return [
-        {
+    """Os 5 indicadores do indice geral, com valor, intensidade (0-1) e nivel."""
+    q = indices.get("qualidade")
+    inten = qualidade.intensidades(q) or {}
+    saida = []
+    for chave in ("turbidez", "clorofila", "cianobacterias", "materia_organica", "sedimentos"):
+        if chave == "turbidez":
+            ntu = q["ntu"] if q else None
+            valor, unidade = (ntu, "NTU") if ntu is not None else (indices["turbidez"], "%")
+            nivel = qualidade.nivel(inten.get("turbidez"), "turbidez") if ntu is not None else _nivel(indices["turbidez"], FAIXAS["particulas"])
+        else:
+            valor, unidade = (q[chave] if q else None), ""
+            nivel = qualidade.nivel(valor, chave)
+        como = COMO[chave]
+        if chave == "sedimentos" and valor is None:
+            como += " — sem sinal: a lanterna emite pouco infravermelho"
+        saida.append({
             "id": chave,
-            "nome": textos[chave][0],
-            "como": textos[chave][1],
-            "unidade": textos[chave][2],
-            "valor": _numero(valores[chave]),
-            "nivel": _nivel(valores[chave], FAIXAS[chave]),
-        }
-        for chave in ("particulas", "materia_organica", "algas", "cianobacterias")
-    ]
+            "nome": qualidade.NOMES_INDICES[chave],
+            "como": como,
+            "unidade": unidade,
+            "valor": _numero(valor),
+            "intensidade": _numero(inten.get(chave)),
+            "nivel": nivel,
+            "peso": qualidade.PESOS[chave],
+        })
+    return saida
 
 
 def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
@@ -240,7 +261,7 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
             obs.append(f"A contaminação está estável em torno de {recente['contaminacao']:.0f}% desde as {antigo['hora']}.")
     if atual_indices:
         for comp in _componentes(atual_indices):
-            if comp["nivel"] in ("Moderado", "Alto") and comp["id"] != "particulas":
+            if comp["nivel"] in ("Moderado", "Alto") and comp["id"] != "turbidez":
                 obs.append(f"{comp['nome']}: nível {comp['nivel'].lower()}, pela {comp['como']}.")
         turb = atual_indices["turbidez"]
         if turb is not None:
@@ -251,8 +272,86 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
     return obs
 
 
+def _referencias():
+    """Ultima agua limpa (branco) e ultima agua suja gravadas, em qualquer dia."""
+    branco = Leitura.objects.filter(tipo="branco").order_by("-medido_em").first()
+    suja = Leitura.objects.filter(tipo="amostra", amostra="agua_podre").order_by("-medido_em").first()
+    suja_q = None
+    if suja and suja.cores:
+        suja_q = qualidade.indices([c.get("porcentagem") for c in suja.cores[:8]], _ntu_valido(suja.turbidez or {}),
+                                   qualidade.absorbancia_nir(suja, branco))
+    return branco, suja, suja_q
+
+
+def _qualidade_atual(atual, atual_indices, suja_q, observacoes):
+    q = atual_indices["qualidade"]
+    if q is None or atual_indices["suspeita"]:
+        return {
+            "valida": False,
+            "alerta": observacoes[0] if observacoes else "Leitura inválida: confira a lanterna e regrave a água limpa.",
+            "conclusao": "Sem leitura válida da lagoa agora: as análises voltam quando a luz no sensor estiver correta.",
+        }
+    geral = qualidade.indice_geral(q)
+    st = qualidade.status(geral)
+    sem_limpa = qualidade.semelhanca(q["absorbancia"], [0.0] * 8)
+    sem_suja = qualidade.semelhanca(q["absorbancia"], suja_q["absorbancia"]) if suja_q else None
+    inten = qualidade.intensidades(q)
+    pior = max((k for k, v in inten.items() if v is not None), key=lambda k: inten[k])
+    parecida = None
+    if sem_suja is not None:
+        parecida = "água limpa" if sem_limpa >= sem_suja else "água suja de referência"
+    conclusao = (f"Índice geral {geral} de 100 ({st}). "
+                 + (f"O espectro se parece mais com a {parecida}. " if parecida else "")
+                 + f"Fator que mais pesa: {qualidade.NOMES_INDICES[pior].lower()}.")
+    elevados = [c for c in _componentes(atual_indices) if c["nivel"] in ("Moderado", "Alto")]
+    if elevados:
+        c = max(elevados, key=lambda c: (c["nivel"] == "Alto", c["intensidade"] or 0))
+        alerta = f"{c['nome']} em nível {c['nivel'].lower()} ({c['como']})."
+    else:
+        alerta = "Nenhum indicador acima do normal nesta leitura."
+    return {
+        "valida": True,
+        "indice_geral": geral,
+        "status": st,
+        "ntu": _numero(q["ntu"]),
+        "classe_conama": qualidade.classe_conama(q["ntu"]),
+        "cor": qualidade.cor_amostra(atual_indices["porcentagens"]),
+        "semelhanca": [
+            {"nome": "Água limpa", "pct": sem_limpa},
+            {"nome": "Água suja de referência", "pct": sem_suja},
+        ],
+        "mais_semelhante": parecida,
+        "alerta": alerta,
+        "conclusao": conclusao,
+    }
+
+
+def _comparacao_amostras(atual_indices, suja_q):
+    nomes = [qualidade.NOMES_INDICES[k] for k in qualidade.PESOS]
+    def linha(q):
+        inten = qualidade.intensidades(q)
+        return None if inten is None else [_numero(inten[k]) for k in qualidade.PESOS]
+    amostras = [{"nome": "Água limpa", "valores": [0.0] * len(nomes)}]
+    if atual_indices and not atual_indices["suspeita"] and atual_indices["qualidade"]:
+        amostras.append({"nome": "Lagoa (agora)", "valores": linha(atual_indices["qualidade"])})
+    if suja_q:
+        amostras.append({"nome": "Água suja", "valores": linha(suja_q)})
+    return {"indicadores": nomes, "amostras": amostras}
+
+
+def _diluicao():
+    recentes = Leitura.objects.filter(amostra__startswith="dil_").order_by("-medido_em")[:500]
+    pares = []
+    for leitura in recentes:
+        if leitura.cores:
+            q = qualidade.indices([c.get("porcentagem") for c in leitura.cores[:8]])
+            pares.append((leitura.amostra, q["absorbancia"] if q else None))
+    return qualidade.serie_diluicao(pares)
+
+
 def _dados_painel(data_selecionada, leituras, metricas):
-    indices = {leitura.pk: _indices(leitura, metricas[leitura.pk]) for leitura in leituras}
+    branco_ref, suja_ref, suja_q = _referencias()
+    indices = {leitura.pk: _indices(leitura, metricas[leitura.pk], branco_ref) for leitura in leituras}
     amostras = [leitura for leitura in leituras if leitura.tipo == "amostra"]
     lagoa = [
         (leitura, indices[leitura.pk])
@@ -321,6 +420,13 @@ def _dados_painel(data_selecionada, leituras, metricas):
     minutos_sem_enviar = None
     if leituras and data_selecionada == timezone.localdate():
         minutos_sem_enviar = int((timezone.now() - leituras[-1].medido_em).total_seconds() // 60)
+    observacoes = _observacoes(
+        serie,
+        atual_indices if atual else None,
+        sum(indices[leitura.pk]["suspeita"] for leitura in leituras),
+        minutos_sem_enviar,
+    )
+    qualidade_atual = _qualidade_atual(atual, atual_indices, suja_q, observacoes) if atual else None
 
     return {
         "data": data_selecionada.isoformat(),
@@ -345,6 +451,7 @@ def _dados_painel(data_selecionada, leituras, metricas):
                 "contaminacao": _numero(indices[leitura.pk]["contaminacao"]),
                 "turbidez": _numero(indices[leitura.pk]["turbidez"]),
                 "turbidez_classe": (leitura.diagnostico or {}).get("turbidez"),
+                **_colunas_qualidade(indices[leitura.pk]),
                 "estado": _estado(leitura, indices[leitura.pk]),
                 "saturado": leitura.saturado,
             }
@@ -368,19 +475,75 @@ def _dados_painel(data_selecionada, leituras, metricas):
             if i["turbidez"] is not None and i["ntu"] is not None
         ],
         "amostra_atual": amostra_atual,
+        "qualidade": qualidade_atual,
+        "comparacao_amostras": _comparacao_amostras(atual_indices if atual else None, suja_q),
+        "referencia_suja": (
+            {"hora": timezone.localtime(suja_ref.medido_em).strftime("%d/%m %H:%M"),
+             "absorbancia": [_numero(v) for v in suja_q["absorbancia"]]}
+            if suja_q else None
+        ),
+        "diluicao": _diluicao(),
         "canais": canais,
         "componentes": _componentes(atual_indices) if atual else [],
-        "observacoes": _observacoes(
-            serie,
-            atual_indices if atual else None,
-            sum(indices[leitura.pk]["suspeita"] for leitura in leituras),
-            minutos_sem_enviar,
-        ),
+        "observacoes": observacoes,
         "diagnostico": diagnostico,
         "turbidez": turbidez,
         "espectro": espectro,
         "live": live,
     }
+
+
+def _colunas_qualidade(indices):
+    q = indices["qualidade"]
+    if q is None or indices["suspeita"]:
+        return {"ntu": None, "clorofila": None, "cianobacterias": None, "materia_organica": None,
+                "sedimentos": None, "indice_geral": None, "status": None}
+    geral = qualidade.indice_geral(q)
+    return {
+        "ntu": _numero(q["ntu"]),
+        "clorofila": _numero(q["clorofila"]),
+        "cianobacterias": _numero(q["cianobacterias"]),
+        "materia_organica": _numero(q["materia_organica"]),
+        "sedimentos": _numero(q["sedimentos"]),
+        "indice_geral": geral,
+        "status": qualidade.status(geral),
+    }
+
+
+def historico(request):
+    """Media por dia dos ultimos 30 dias (agua da lagoa, leituras validas)."""
+    dias = max(1, min(90, int(request.GET.get("dias", 30) or 30)))
+    inicio = timezone.localdate() - timedelta(days=dias - 1)
+    branco = Leitura.objects.filter(tipo="branco").order_by("-medido_em").first()
+    linhas = (
+        Leitura.objects.filter(collection__data_coleta__gte=inicio, tipo="amostra")
+        .exclude(amostra__in=REFERENCIAS)
+        .exclude(amostra__startswith="dil_")
+        .select_related("collection")
+        .only("medido_em", "tipo", "amostra", "turbidez", "cores", "media", "saturado", "ganho", "collection__data_coleta")
+    )
+    por_dia = {}
+    for leitura in linhas:
+        if not leitura.cores:
+            continue
+        i = _indices(leitura, {}, branco)
+        q = i["qualidade"]
+        if i["suspeita"] or q is None:
+            continue
+        por_dia.setdefault(leitura.collection.data_coleta, []).append((i, q))
+    saida = []
+    for dia, grupo in sorted(por_dia.items()):
+        saida.append({
+            "data": dia.isoformat(),
+            "medicoes": len(grupo),
+            "ntu": _numero(_media([q["ntu"] for _, q in grupo])),
+            "turbidez": _numero(_media([i["turbidez"] for i, _ in grupo])),
+            "clorofila": _numero(_media([q["clorofila"] for _, q in grupo])),
+            "cianobacterias": _numero(_media([q["cianobacterias"] for _, q in grupo])),
+            "materia_organica": _numero(_media([q["materia_organica"] for _, q in grupo])),
+            "indice_geral": _numero(_media([qualidade.indice_geral(q) for _, q in grupo])),
+        })
+    return JsonResponse({"dias": dias, "historico": saida})
 
 
 def _numero(valor):

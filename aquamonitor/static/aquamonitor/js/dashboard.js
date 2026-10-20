@@ -203,7 +203,8 @@
     setChartState("absorb-wrap", "absorb-empty", ok);
     if (!chart || !ok) return;
     const W = 900, H = 260, m = { t: 18, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
-    const max = Math.max(0.5, Math.ceil(Math.max(...a) * 1.2 * 10) / 10);
+    const ref = data?.referencia_suja?.absorbancia;
+    const max = Math.max(0.5, Math.ceil(Math.max(...a, ...(ref || []).filter(Number.isFinite)) * 1.2 * 10) / 10);
     const x = (i) => m.l + (i / 7) * pw, y = (v) => m.t + ((max - Math.max(0, v)) / max) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
@@ -212,6 +213,11 @@
       svgText(chart, m.l - 10, y(v) + 4, v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
     }
     const line = a.map((v, i) => `${i ? "L" : "M"} ${x(i)} ${y(v)}`).join(" ");
+    if (Array.isArray(ref) && ref.every(Number.isFinite)) {
+      addSVG(chart, "path", { d: ref.map((v, i) => `${i ? "L" : "M"} ${x(i)} ${y(v)}`).join(" "), stroke: "#a26a2a", "stroke-width": 2, "stroke-dasharray": "6 5", fill: "none" });
+      svgText(chart, x(7), y(ref[7]) - 10, `água suja (${data.referencia_suja.hora})`, { class: "axis-text", "text-anchor": "end" });
+    }
+    svgText(chart, x(7), y(0) - 6, "água limpa = 0", { class: "axis-text", "text-anchor": "end" });
     addSVG(chart, "path", { d: `${line} L ${x(7)} ${H - m.b} L ${x(0)} ${H - m.b} Z`, fill: "#19b5c8", "fill-opacity": 0.14 });
     addSVG(chart, "path", { d: line, class: "series-line", stroke: "#0a8fa8", pathLength: 1 });
     a.forEach((v, i) => {
@@ -223,24 +229,24 @@
   }
 
   function renderComponentes(data) {
-    const body = $("componentes-body"); if (!body) return;
-    body.replaceChildren();
+    const box = $("componentes-body"); if (!box) return;
+    box.replaceChildren();
     const lista = data?.componentes || [];
     lista.forEach((c) => {
-      const tr = body.insertRow();
-      const nome = tr.insertCell(); nome.style.whiteSpace = "normal"; // texto longo quebra a linha
-      const como = document.createElement("small"); como.textContent = c.como;
-      nome.append(document.createTextNode(c.nome), document.createElement("br"), como);
-      const valor = tr.insertCell(); valor.className = "numeric-cell";
-      valor.textContent = c.valor == null ? "—" : c.unidade === "%" ? `${fmt(c.valor, 0)}%` : Number(c.valor).toFixed(3);
+      const card = document.createElement("article"); card.className = "sample-metric";
+      const nome = document.createElement("span"); nome.textContent = `${c.nome} · peso ${Math.round(c.peso * 100)}%`;
+      const valor = document.createElement("strong");
+      valor.textContent = c.valor == null ? "—" : c.unidade === "NTU" ? `${fmt(c.valor, 1)} NTU` : c.unidade === "%" ? `${fmt(c.valor, 0)}%` : Number(c.valor).toFixed(3);
       const badge = document.createElement("span");
       badge.className = `state-badge ${c.nivel === "Baixo" ? "state-ok" : "state-warning"}`;
-      badge.append(document.createElement("i"), document.createTextNode(c.nivel || "—"));
-      tr.insertCell().append(badge);
+      badge.append(document.createElement("i"), document.createTextNode(c.nivel || "sem dado"));
+      const barra = document.createElementNS(SVG_NS, "svg"); barra.setAttribute("viewBox", "0 0 100 8"); barra.style.width = "100%";
+      addSVG(barra, "rect", { x: 0, y: 0, width: 100, height: 8, rx: 4, fill: "rgba(16,110,135,.12)" });
+      if (Number.isFinite(c.intensidade)) addSVG(barra, "rect", { x: 0, y: 0, width: Math.max(2, c.intensidade * 100), height: 8, rx: 4, fill: c.nivel === "Baixo" ? VERDE : c.nivel === "Alto" ? VERMELHO : AMBAR });
+      const como = document.createElement("small"); como.textContent = c.como;
+      card.append(nome, valor, badge, barra, como); box.append(card);
     });
-    if (!lista.length) {
-      const td = body.insertRow().insertCell(); td.colSpan = 3; td.className = "empty-row"; td.textContent = "Aguardando uma leitura válida da lagoa.";
-    }
+    if (!lista.length) { const p = document.createElement("small"); p.textContent = "Aguardando uma leitura válida da lagoa."; box.append(p); }
   }
 
   function renderObservacoes(data) {
@@ -294,9 +300,9 @@
       texto: "Onde a lagoa está entre a água limpa (0%) e a água suja de referência (100%)." },
     turbidez: { nome: "Turbidez", unidade: "% luz bloqueada", casas: 0, teto: 40, faixas: [[5, "levemente turva"], [15, "turva"], [35, "muito turva"]],
       texto: "Luz bloqueada pelas partículas em 590–630 nm (sensor de cor)." },
-    algas: { nome: "Algas", unidade: "", casas: 3, teto: 0.1, faixas: [[0.02, "sinal fraco"], [0.08, "algas presentes"]],
+    algas: { nome: "Algas", unidade: "", casas: 3, teto: 0.25, faixas: [[0.05, "moderado"], [0.2, "alto"]],
       texto: "Absorção extra no vermelho 680 nm (clorofila) em relação ao amarelo 590 nm." },
-    cor: { nome: "Cor", unidade: "", casas: 3, teto: 0.12, faixas: [[0.03, "levemente amarelada"], [0.1, "cor de chá"]],
+    cor: { nome: "Cor", unidade: "", casas: 3, teto: 0.25, faixas: [[0.05, "moderado"], [0.2, "alto"]],
       texto: "Absorção extra no violeta 415 nm (matéria orgânica dissolvida) em relação ao verde 555 nm." },
   };
   let indiceAtual = "contaminacao", ultimaSerie = [];
@@ -365,6 +371,172 @@
       "data-tip": `${p.hora} · ${fmt(p.turbidez, 1)}% luz bloqueada · ${fmt(p.ntu, 1)} NTU` }));
   }
 
+  /* ---------- qualidade: medidor, semaforo e cor ---------- */
+  const VERDE = "#1f9d74", AMBAR = "#d19a2b", VERMELHO = "#d2504a";
+  function arco(cx, cy, r, a0, a1) {
+    const p = (a) => [cx + r * Math.cos(Math.PI * (1 - a)), cy - r * Math.sin(Math.PI * (1 - a))];
+    const [x0, y0] = p(a0), [x1, y1] = p(a1);
+    return `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`;
+  }
+  // Meia-lua 0-150 NTU com as faixas da CONAMA 357/2005 (40 e 100 NTU).
+  function renderGauge(ntu) {
+    const svg = $("sample-gauge"); if (!svg) return;
+    svg.replaceChildren(); svg.hidden = !Number.isFinite(ntu);
+    if (!Number.isFinite(ntu)) return;
+    const MAX = 150;
+    [[0, 40, VERDE], [40, 100, AMBAR], [100, MAX, VERMELHO]].forEach(([a, b, c]) =>
+      addSVG(svg, "path", { d: arco(100, 100, 80, a / MAX, b / MAX), stroke: c, "stroke-width": 16, fill: "none", opacity: 0.85 }));
+    const k = clamp(ntu / MAX), ang = Math.PI * (1 - k);
+    addSVG(svg, "line", { x1: 100, y1: 100, x2: 100 + 66 * Math.cos(ang), y2: 100 - 66 * Math.sin(ang), stroke: "#23414d", "stroke-width": 3, "stroke-linecap": "round" });
+    addSVG(svg, "circle", { cx: 100, cy: 100, r: 5, fill: "#23414d" });
+    svgText(svg, 20, 120, "0", { class: "axis-text", "text-anchor": "middle" }); svgText(svg, 180, 120, "150 NTU", { class: "axis-text", "text-anchor": "middle" });
+  }
+  function renderSemaforo(st) {
+    const svg = $("sample-iq-sem"); if (!svg) return;
+    svg.replaceChildren();
+    [["alerta", VERMELHO], ["atenção", AMBAR], ["bom", VERDE]].forEach(([nome, c], i) =>
+      addSVG(svg, "circle", { cx: 12 + i * 30, cy: 10, r: 8, fill: c, opacity: st === nome ? 1 : 0.2 }));
+  }
+  function renderSwatch(hex) {
+    const svg = $("sample-swatch"); if (!svg) return;
+    svg.replaceChildren(); svg.hidden = !hex;
+    if (hex) addSVG(svg, "rect", { x: 1, y: 1, width: 58, height: 34, rx: 8, fill: hex, stroke: "#c9d3dc" });
+  }
+
+  /* ---------- comparacao, semelhanca, diluicao ---------- */
+  const CORES_AMOSTRAS = ["#1f9d74", "#0a8fa8", "#a26a2a"];
+  function renderComparacao(data) {
+    const chart = $("cmp-chart"), cmp = data?.comparacao_amostras;
+    const amostras = (cmp?.amostras || []).filter((a) => Array.isArray(a.valores));
+    setChartState("cmp-wrap", "cmp-empty", amostras.length > 1);
+    if (!chart || amostras.length < 2) return;
+    const W = 900, H = 280, m = { t: 30, r: 20, b: 46, l: 50 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const n = cmp.indicadores.length, grupo = pw / n, bw = Math.min(46, (grupo - 24) / amostras.length);
+    const y = (v) => m.t + (1 - clamp(v ?? 0)) * ph;
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    for (let i = 0; i <= 4; i++) {
+      const v = 1 - i / 4;
+      addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line" });
+      svgText(chart, m.l - 10, y(v) + 4, v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+    }
+    cmp.indicadores.forEach((nome, i) => {
+      const x0 = m.l + i * grupo + (grupo - bw * amostras.length) / 2;
+      amostras.forEach((a, j) => {
+        const v = a.valores[i];
+        addSVG(chart, "rect", { x: x0 + j * bw, y: y(v), width: bw - 4, height: m.t + ph - y(v), rx: 5, fill: CORES_AMOSTRAS[j % 3],
+          class: "bar-live", "data-tip": `${a.nome} · ${nome}: ${v == null ? "sem dado" : fmt(v, 2)}` });
+      });
+      svgText(chart, m.l + i * grupo + grupo / 2, H - 22, nome, { class: "axis-text", "text-anchor": "middle" });
+    });
+    amostras.forEach((a, j) => {
+      addSVG(chart, "rect", { x: m.l + j * 170, y: 6, width: 12, height: 12, rx: 3, fill: CORES_AMOSTRAS[j % 3] });
+      svgText(chart, m.l + j * 170 + 18, 16, a.nome, { class: "axis-text" });
+    });
+  }
+
+  function renderSemelhanca(data) {
+    const chart = $("sim-chart"), q = data?.qualidade;
+    const lista = (q?.valida ? q.semelhanca : []).filter((r) => Number.isFinite(r.pct));
+    setChartState("sim-wrap", "sim-empty", lista.length > 0);
+    if ($("sim-concl")) $("sim-concl").textContent = q?.valida && q.mais_semelhante
+      ? `A lagoa se parece mais com a ${q.mais_semelhante}.` : q?.valida ? "Grave a água suja (BOOT → 2) para comparar com as duas referências." : "";
+    if (!chart || !lista.length) return;
+    const W = 900, H = 160, m = { l: 230, r: 70, t: 20 }, pw = W - m.l - m.r, row = 56;
+    const topo = Math.max(...lista.map((r) => r.pct));
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    lista.forEach((r, i) => {
+      const yy = m.t + i * row;
+      svgText(chart, m.l - 14, yy + 20, r.nome, { class: "axis-text", "text-anchor": "end" });
+      addSVG(chart, "rect", { x: m.l, y: yy + 6, width: pw, height: 22, rx: 11, fill: "rgba(16,110,135,.1)" });
+      addSVG(chart, "rect", { x: m.l, y: yy + 6, width: (pw * r.pct) / 100, height: 22, rx: 11, fill: r.pct === topo ? "#0a8fa8" : "#7cc7d3",
+        "data-tip": `${r.nome}: ${r.pct}% de semelhança` });
+      svgText(chart, W - m.r + 12, yy + 22, `${r.pct}%`, { class: "axis-text" });
+    });
+  }
+
+  function renderDiluicao(data) {
+    const chart = $("dil-chart"), series = data?.diluicao || [];
+    setChartState("dil-wrap", "dil-empty", series.length > 0);
+    if (!chart || !series.length) return;
+    const W = 900, H = 280, m = { t: 34, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const todos = series.flatMap((s) => s.pontos);
+    const maxC = Math.max(...todos.map((p) => p.c)) * 1.08, maxA = Math.max(0.1, ...todos.map((p) => p.a)) * 1.15;
+    const x = (c) => m.l + (c / maxC) * pw, y = (a) => m.t + ((maxA - Math.max(0, a)) / maxA) * ph;
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    for (let i = 0; i <= 4; i++) {
+      const a = (maxA * i) / 4, c = (maxC * i) / 4;
+      addSVG(chart, "line", { x1: m.l, y1: y(a), x2: W - m.r, y2: y(a), class: "grid-line" });
+      svgText(chart, m.l - 10, y(a) + 4, a.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+      svgText(chart, x(c), H - 24, fmt(c, 0), { class: "axis-text", "text-anchor": "middle" });
+    }
+    svgText(chart, m.l + pw / 2, H - 6, "concentração", { class: "axis-label", "text-anchor": "middle" });
+    series.forEach((s, k) => {
+      const cor = colors[(k * 3) % 8];
+      addSVG(chart, "line", { x1: x(0), y1: y(s.intercepto), x2: x(maxC), y2: y(s.intercepto + s.inclinacao * maxC), stroke: cor, "stroke-width": 2, "stroke-dasharray": "6 5" });
+      s.pontos.forEach((p) => addSVG(chart, "circle", { cx: x(p.c), cy: y(p.a), r: 6, fill: "#fff", stroke: cor, class: "series-dot",
+        "data-tip": `${s.corante} ${fmt(p.c)} · A(${s.canal_nm} nm) = ${p.a.toFixed(3)}` }));
+      svgText(chart, m.l + 8 + k * 260, 18, `${s.corante} · ${s.canal_nm} nm · R² = ${s.r2 == null ? "—" : s.r2.toFixed(3)}`, { class: "axis-label", fill: cor });
+    });
+  }
+
+  /* ---------- historico dos ultimos 30 dias ---------- */
+  function linhasHistorico(chartId, wrapId, emptyId, pontos, series, max, limites) {
+    const chart = $(chartId);
+    const ok = pontos.length > 1 && series.some((s) => pontos.filter((p) => Number.isFinite(p[s.campo])).length > 1);
+    setChartState(wrapId, emptyId, ok);
+    if (!chart || !ok) return;
+    const W = 900, H = 260, m = { t: 18, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const x = (i) => m.l + (i / (pontos.length - 1)) * pw, y = (v) => m.t + ((max - clamp(v, 0, max)) / max) * ph;
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    for (let i = 0; i <= 4; i++) {
+      const v = max - (max * i) / 4;
+      addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line" });
+      svgText(chart, m.l - 10, y(v) + 4, max < 1 ? v.toFixed(2) : Math.round(v), { class: "axis-text", "text-anchor": "end" });
+    }
+    limites.filter(([v]) => v < max).forEach(([v, nome, cor]) => {
+      addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line", stroke: cor, "stroke-dasharray": "6 5" });
+      svgText(chart, W - m.r, y(v) - 5, nome, { class: "axis-text", "text-anchor": "end" });
+    });
+    const passo = passoRotulo(pontos.length);
+    pontos.forEach((p, i) => { if (i % passo === 0) svgText(chart, x(i), H - 10, p.data.slice(8, 10) + "/" + p.data.slice(5, 7), { class: "axis-text", "text-anchor": "middle" }); });
+    series.forEach((s) => {
+      const seg = pontos.map((p, i) => [i, p[s.campo]]).filter(([, v]) => Number.isFinite(v));
+      if (seg.length < 2) return;
+      addSVG(chart, "path", { d: seg.map(([i, v], k) => `${k ? "L" : "M"} ${x(i)} ${y(v)}`).join(" "), class: "series-line", stroke: s.cor });
+      seg.forEach(([i, v]) => addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 4, fill: "#fff", stroke: s.cor, class: "series-dot",
+        "data-tip": `${pontos[i].data.split("-").reverse().join("/")} · ${s.nome}: ${max < 1 ? v.toFixed(3) : fmt(v, 1)}${s.unidade || ""} · ${pontos[i].medicoes} medições` }));
+    });
+  }
+  function renderHistorico(lista = []) {
+    const temNtu = lista.filter((p) => Number.isFinite(p.ntu)).length > 1;
+    if ($("hist-t-description")) $("hist-t-description").textContent = temNtu
+      ? "Média por dia da água da lagoa (sensor de turbidez, NTU). Linhas tracejadas: limites da CONAMA 357/2005."
+      : "Média por dia da água da lagoa. Sem NTU válido: mostra a luz bloqueada pelo sensor de cor (%).";
+    if (temNtu) {
+      const max = tetoRedondo(Math.max(120, ...lista.map((p) => p.ntu ?? 0)) * 1.1, 20);
+      linhasHistorico("hist-t-chart", "hist-t-wrap", "hist-t-empty", lista, [{ campo: "ntu", nome: "Turbidez", cor: "#0a8fa8", unidade: " NTU" }], max,
+        [[40, "40 NTU · classe 1", AMBAR], [100, "100 NTU · classes 2 e 3", VERMELHO]]);
+    } else {
+      linhasHistorico("hist-t-chart", "hist-t-wrap", "hist-t-empty", lista, [{ campo: "turbidez", nome: "Luz bloqueada", cor: "#0a8fa8", unidade: "%" }], 100,
+        [[15, "turva", AMBAR], [35, "muito turva", VERMELHO]]);
+    }
+    const maxI = Math.max(0.25, ...lista.flatMap((p) => [p.clorofila, p.cianobacterias, p.materia_organica]).filter(Number.isFinite)) * 1.1;
+    linhasHistorico("hist-i-chart", "hist-i-wrap", "hist-i-empty", lista, [
+      { campo: "clorofila", nome: "Clorofila", cor: "#21b98a" },
+      { campo: "cianobacterias", nome: "Cianobactérias", cor: "#ed7845" },
+      { campo: "materia_organica", nome: "M. orgânica", cor: "#7952c7" },
+    ], maxI, [[0.05, "moderado", AMBAR], [0.2, "alto", VERMELHO]]);
+  }
+  async function atualizarHistorico() {
+    const endpoint = shell?.dataset.historicoUrl;
+    if (!endpoint || document.hidden) return;
+    try {
+      const r = await fetch(endpoint, { cache: "no-store", headers: { Accept: "application/json" } });
+      if (r.ok) renderHistorico((await r.json()).historico || []);
+    } catch (e) { console.error("Não foi possível carregar o histórico.", e); }
+  }
+  atualizarHistorico(); setInterval(atualizarHistorico, 10 * 60 * 1000);
+
   /* ---------- tabelas ---------- */
   let rows = [];
   function renderReadings(data) {
@@ -376,7 +548,10 @@
       tr.dataset.sample = r.amostra.toLocaleLowerCase("pt-BR"); tr.dataset.type = r.tipo;
       const contam = r.contaminacao == null ? "—" : `${Math.round(r.contaminacao)}%`;
       const turb = r.turbidez == null ? "—" : `${Math.round(r.turbidez)}%${r.turbidez_classe ? ` · ${r.turbidez_classe}` : ""}`;
-      [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb]].forEach(([cls, text], i) => {
+      const num = (v, casas) => (v == null ? "—" : Number(v).toFixed(casas));
+      [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb],
+        ["numeric-cell", num(r.ntu, 1)], ["numeric-cell", num(r.clorofila, 3)], ["numeric-cell", num(r.cianobacterias, 3)],
+        ["numeric-cell", num(r.materia_organica, 3)], ["numeric-cell", num(r.sedimentos, 3)], ["numeric-cell", r.indice_geral ?? "—"], ["", r.status || "—"]].forEach(([cls, text], i) => {
         const td = tr.insertCell(); if (cls) td.className = cls;
         if (i === 2) { const b = document.createElement("span"); b.className = `type-badge type-${r.tipo}`; b.textContent = text; td.append(b); }
         else td.textContent = text;
@@ -389,7 +564,7 @@
     });
     if (!list.length) {
       const tr = body.insertRow(); tr.dataset.empty = "true";
-      const td = tr.insertCell(); td.colSpan = 6; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
+      const td = tr.insertCell(); td.colSpan = 13; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
     }
     rows = [...body.querySelectorAll("tr:not([data-empty])")];
     filterReadings();
@@ -448,18 +623,24 @@
     const dg = data.diagnostico;
     if ($("sample-analysis")) $("sample-analysis").hidden = !dg;
     if (dg) {
-      const atual = data.amostra_atual, tb = data.turbidez || {};
+      const atual = data.amostra_atual, q = data.qualidade || {};
+      const tb = { ...(data.turbidez || {}), ntu: q.ntu ?? null }; // NTU so quando o sensor nao esta travado
       const luz = tb.luz_bloqueada_pct == null ? null : `${fmt(tb.luz_bloqueada_pct, 0)}% da luz bloqueada`;
       Object.entries({
         "sample-name": atual?.nome || "—", "sample-time": atual?.hora || data.ultima_leitura || "—",
         "sample-turbidity": tb.ntu != null ? `${fmt(tb.ntu, 1)} NTU` : tb.luz_bloqueada_pct != null ? `${fmt(tb.luz_bloqueada_pct, 0)}%` : "—",
         "sample-turbidity-class": [dg.turbidez, tb.ntu != null ? luz : luz && "luz bloqueada (sensor de cor)"].filter(Boolean).join(" · ") || "—",
-        "sample-voltage": tb.tensao_v == null ? "—" : `${fmt(tb.tensao_v)} V`,
-        "sample-algae": dg.algas || "—", "sample-color": dg.cor || "—",
+        "sample-iq": q.valida ? `${q.indice_geral} / 100` : "—",
+        "sample-iq-status": q.valida ? q.status.toUpperCase() : "sem leitura válida",
+        "sample-algae": dg.algas || "—", "sample-color": q.cor?.nome || dg.cor || "—",
+        "sample-color-info": q.cor ? `cor medida ${q.cor.hex} · λ dominante ${q.cor.lambda_dom_nm} nm` : "—",
+        "sample-alert": q.alerta ? `Alerta principal: ${q.alerta}` : "",
         "sample-contamination": dg.contaminacao_pct == null ? "—" : `${dg.contaminacao_pct}%`,
         "sample-contamination-class": dg.contaminacao || "falta gravar a água suja de referência",
-        "sample-summary": dg.resumo || "",
+        "sample-summary": q.conclusao || dg.resumo || "",
       }).forEach(([id, v]) => setText(id, v));
+      if (q.classe_conama) setText("sample-turbidity-class", `CONAMA: ${q.classe_conama}`);
+      renderGauge(q.ntu); renderSemaforo(q.valida ? q.status : null); renderSwatch(q.cor?.hex);
     }
     if ($("sync-badge")) $("sync-badge").textContent = data.demo ? "Dados de demonstração" : "Sincronização";
     if ($("sync-message")) $("sync-message").textContent = data.demo
@@ -477,6 +658,7 @@
     renderReadings(data); renderTurbidityChart(data.chart_data || []); renderSpectrumChart(data); renderLiveChart(data);
     renderSeriesChart(data.serie || []); renderScatterChart(data.comparacao || []); renderColetasTable();
     renderAbsorbChart(data); renderComponentes(data); renderObservacoes(data); renderSpectralTime(data.serie || []);
+    renderComparacao(data); renderSemelhanca(data); renderDiluicao(data);
     ultimosDados = data;
     firstRender = false;
   }

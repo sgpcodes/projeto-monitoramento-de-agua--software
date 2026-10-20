@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.test import TestCase
 from django.urls import reverse
@@ -118,8 +118,15 @@ class DashboardDataTests(TestCase):
         self.assertGreater(payload["serie"][0]["algas"], 0.07)  # A680 - A590 com 50% e 60%
         self.assertEqual(payload["leituras"][0]["estado"], "Saturada")
         niveis = {c["id"]: c["nivel"] for c in payload["componentes"]}
-        self.assertEqual(niveis["particulas"], "Alto")  # 40% bloqueada (acima de 35%)
-        self.assertEqual(niveis["algas"], "Moderado")  # indice 0,079
+        self.assertEqual(niveis["turbidez"], "Alto")  # 40% bloqueada (acima de 35%)
+        self.assertEqual(niveis["clorofila"], "Moderado")  # indice 0,079 (entre 0,05 e 0,20)
+        self.assertEqual(len(payload["componentes"]), 5)
+        q = payload["qualidade"]
+        self.assertTrue(q["valida"])
+        self.assertTrue(0 <= q["indice_geral"] <= 100)
+        self.assertIn(q["status"], ("bom", "atenção", "alerta"))
+        self.assertTrue(q["cor"]["hex"].startswith("#"))
+        self.assertEqual(payload["leituras"][1]["indice_geral"], q["indice_geral"])
         self.assertEqual(len(payload["espectro"]["absorbancia"]), 8)
         self.assertEqual(payload["canais"]["rotulos"][-1], "NIR")
         self.assertEqual(payload["canais"]["medicoes_dia"], 2)
@@ -157,6 +164,31 @@ class DashboardDataTests(TestCase):
         self.assertEqual(payload["suspeitas"], 1)
         self.assertEqual(payload["chart_data"], [])  # nao vira "99% de turbidez"
         self.assertEqual(payload["leituras"][0]["estado"], "Pouca luz")
+
+    def test_dilution_series_and_history(self):
+        collection = Coleta.objects.create(data_coleta=timezone.localdate())
+        for i, (conc, pct) in enumerate([(25, 80), (50, 64), (100, 41)]):
+            Leitura.objects.create(
+                collection=collection, tipo="amostra", amostra=f"dil_cafe_{conc}", led="frente", replica=1,
+                medido_em=timezone.now() - timedelta(minutes=10 - i), ganho=64, atime=0, astep=0, n=1,
+                saturado=False, media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+                turbidez={}, cores=[{"porcentagem": pct} for _ in range(8)], diagnostico={},
+            )
+        Leitura.objects.create(
+            collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.now(), ganho=64, atime=0, astep=0, n=1, saturado=False,
+            media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+            turbidez={"ntu": 12.0, "tensao_v": 4.0}, cores=[{"porcentagem": 70} for _ in range(8)], diagnostico={},
+        )
+
+        payload = self.client.get(reverse("dashboard_data")).json()
+        dil = payload["diluicao"][0]
+        self.assertEqual(dil["corante"], "cafe")
+        self.assertGreater(dil["r2"], 0.95)  # A = -log10(T) cresce quase em linha reta
+
+        hist = self.client.get(reverse("historico")).json()["historico"]
+        self.assertEqual(hist[-1]["medicoes"], 1)  # so a lagoa (diluicoes ficam fora)
+        self.assertEqual(hist[-1]["ntu"], 12.0)
 
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
