@@ -3,6 +3,7 @@ from datetime import date
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 
 from .models import Coleta
 from .serializers import CHANNELS
@@ -50,6 +51,7 @@ def dashboard(request):
     return render(request, "aquamonitor/dashboard.html", context)
 
 
+@never_cache
 def dashboard_data(request):
     hoje = timezone.localdate()
     try:

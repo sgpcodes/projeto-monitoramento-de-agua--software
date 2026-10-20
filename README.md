@@ -42,7 +42,7 @@ O blueprint de Render executa `collectstatic` na compilação, aplica as migraç
 - `/api/dashboard/?data=AAAA-MM-DD` — dados reais da coleta selecionada para atualizar o painel
 - `/admin/` — administração Django
 
-O painel consulta `/api/dashboard/` a cada 15 segundos e atualiza indicadores, tabela e gráficos sem recarregar a página. Os gráficos só são preenchidos quando há medições reais; para os canais ópticos, a absorbância depende de uma leitura de calibração válida.
+O painel consulta `/api/dashboard/` ao abrir e a cada 5 segundos, lendo os registros do banco configurado no servidor e atualizando indicadores, tabela e gráficos sem recarregar a página. As respostas não são armazenadas em cache. Os gráficos só são preenchidos quando há medições reais; para os canais ópticos, a absorbância depende de uma leitura de calibração válida.
 
 Na data `2026-10-20`, o painel pode apresentar os valores de demonstração fornecidos para a amostra “lagoa” quando ainda não houver leituras reais no banco. O aviso na tela identifica esses valores; eles não são enviados ao endpoint nem gravados como medições.
 

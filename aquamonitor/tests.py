@@ -15,6 +15,7 @@ class DashboardDataTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response.headers["Cache-Control"])
         self.assertEqual(response.json()["total_leituras"], 0)
         self.assertEqual(response.json()["leituras"], [])
         self.assertEqual(response.json()["chart_data"], [])

@@ -3,6 +3,36 @@
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const $ = (id) => document.getElementById(id);
   const shell = document.querySelector(".app-shell");
+  const themeToggle = $("theme-toggle");
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  function setTheme(theme, persist = false) {
+    const isDark = theme === "dark";
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    if (themeToggle) {
+      themeToggle.textContent = isDark ? "Claro" : "Escuro";
+      themeToggle.setAttribute("aria-label", `Ativar modo ${isDark ? "claro" : "escuro"}`);
+      themeToggle.setAttribute("aria-pressed", String(isDark));
+    }
+    if (themeMeta) themeMeta.content = isDark ? "#0b171d" : "#eefbfd";
+    if (persist) {
+      try {
+        localStorage.setItem("aquamonitor-theme", isDark ? "dark" : "light");
+      } catch (error) {
+        console.error("Não foi possível salvar a preferência de tema.", error);
+      }
+    }
+  }
+  let savedTheme = "light";
+  try {
+    const storedTheme = localStorage.getItem("aquamonitor-theme");
+    if (storedTheme === "dark" || storedTheme === "light") savedTheme = storedTheme;
+  } catch (error) {
+    console.error("Não foi possível carregar a preferência de tema.", error);
+  }
+  setTheme(savedTheme);
+  themeToggle?.addEventListener("click", () => {
+    setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  });
   const SVG_NS = "http://www.w3.org/2000/svg";
   const colors = ["#7952c7", "#4c78ed", "#18a6d5", "#21b98a", "#94bf36", "#e8a926", "#ed7845", "#e34e5a"];
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -265,20 +295,26 @@
   }
   checkHealth(); setInterval(checkHealth, 30000);
 
+  let refreshing = false;
   async function refresh() {
-    const endpoint = shell?.dataset.dashboardUrl; if (!endpoint || document.hidden) return;
-    const url = new URL(endpoint, location.href); url.searchParams.set("data", shell.dataset.selectedDate);
+    const endpoint = shell?.dataset.dashboardUrl;
+    if (!endpoint || document.hidden || refreshing) return;
+    refreshing = true;
     try {
+      const url = new URL(endpoint, location.href); url.searchParams.set("data", shell.dataset.selectedDate);
       const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       renderDashboard(await r.json());
     } catch (e) {
       if ($("data-updated")) $("data-updated").textContent = "falha na sincronização; tentando novamente";
       console.error("Não foi possível atualizar o painel.", e);
+    } finally {
+      refreshing = false;
     }
   }
   renderDashboard(readJSON("dashboard-data"));
-  setInterval(refresh, 15000);
+  refresh();
+  setInterval(refresh, 5000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 
   /* ---------- mergulho: tudo reage à rolagem ---------- */
