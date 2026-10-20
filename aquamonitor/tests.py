@@ -190,6 +190,33 @@ class DashboardDataTests(TestCase):
         self.assertEqual(hist[-1]["medicoes"], 1)  # so a lagoa (diluicoes ficam fora)
         self.assertEqual(hist[-1]["ntu"], 12.0)
 
+    def test_samples_like_the_design(self):
+        collection = Coleta.objects.create(data_coleta=timezone.localdate())
+        def medir(nome, pct, tipo="amostra", ntu=10.0, minutos=0):
+            Leitura.objects.create(
+                collection=collection, tipo=tipo, amostra=nome, led="frente", replica=1,
+                medido_em=timezone.now() - timedelta(minutes=minutos), ganho=64, atime=0, astep=0, n=1, saturado=False,
+                media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+                turbidez={"ntu": ntu, "tensao_v": 4.0}, cores=[{"porcentagem": p} for p in pct], diagnostico={},
+            )
+        medir("agua_limpa", [100] * 8, tipo="branco", ntu=0.2)
+        for i in range(3):
+            medir("lagoa_p2", [40, 35, 60, 75, 76, 62, 58, 52], ntu=68.0 + i, minutos=i)
+        medir("agua_podre", [8, 10, 13, 16, 20, 24, 29, 31], ntu=145.0)
+        medir("ref_algas", [45, 38, 62, 74, 75, 64, 60, 48], ntu=35.0)
+
+        d = self.client.get(reverse("amostras")).json()
+        ids = [a["id"] for a in d["amostras"]]
+        self.assertEqual(ids[0], "agua_limpa")  # o branco vem primeiro
+        p2 = next(a for a in d["amostras"] if a["id"] == "lagoa_p2")
+        self.assertEqual(p2["nome"], "Lagoa – Ponto 2")
+        self.assertEqual(p2["repeticoes"], 3)
+        self.assertAlmostEqual(p2["turbidez_ntu"], 69.0)
+        self.assertEqual(p2["referencia_mais_semelhante"], "Água esverdeada (algas)")
+        self.assertIn("Status:", p2["conclusao"])
+        self.assertEqual(d["padrao"], "lagoa_p2")
+        self.assertIn("agua_podre", d["comparacao"])
+
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
 

@@ -24,6 +24,7 @@
      data-health-url="{% url 'health' %}"
      data-dashboard-url="{% url 'dashboard_data' %}"
      data-historico-url="{% url 'historico' %}"
+     data-amostras-url="{% url 'amostras' %}"
      data-selected-date="{{ data_selecionada|date:'Y-m-d' }}">
 
 <header class="nav">
@@ -34,7 +35,7 @@
   <nav class="nav-links" aria-label="Navegação principal">
     <a class="nav-link is-active" href="#overview">Visão geral</a>
     <a class="nav-link" href="#espectro">Espectro</a>
-    <a class="nav-link" href="#analise">Análise</a>
+    <a class="nav-link" href="#assinatura">Análise</a>
     <a class="nav-link" href="#comparacao">Comparação</a>
     <a class="nav-link" href="#historico">Histórico</a>
     <a class="nav-link" href="#evolucao">Evolução</a>
@@ -85,27 +86,27 @@
       <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
     </section>
 
-    <section class="sample-analysis" id="sample-analysis" aria-label="Diagnóstico da amostra" hidden data-reveal>
+    <section class="sample-analysis" id="sample-analysis" aria-label="Amostra selecionada" data-reveal>
       <div class="sample-head">
-        <div><p class="panel-kicker">Amostra <span id="sample-name">—</span></p><h2>Leitura e diagnóstico</h2></div>
-        <span class="sample-time">Medida às <strong id="sample-time">—</strong></span>
+        <div><p class="panel-kicker">Amostra · média de 3 repetições</p><h2 id="am-nome">Leitura e diagnóstico</h2></div>
+        <div class="table-toolbar" style="padding:0;border:0">
+          <label class="select-label" for="am-select">Amostra<select id="am-select"></select></label>
+          <span class="sample-time">Leitura <strong id="am-leitura">—</strong></span>
+        </div>
       </div>
+      <p class="sample-summary" id="am-conclusao">Carregando as amostras…</p>
       <div class="sample-metrics">
-        <article class="sample-metric"><span>Turbidez</span><strong id="sample-turbidity">—</strong><small id="sample-turbidity-class">—</small><svg id="sample-gauge" viewBox="0 0 200 124" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:150px"></svg></article>
-        <article class="sample-metric"><span>Índice geral de qualidade</span><strong id="sample-iq">—</strong><small id="sample-iq-status">—</small><svg id="sample-iq-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:90px"></svg><small>80–100 bom · 50–79 atenção · &lt;50 alerta</small></article>
-        <article class="sample-metric"><span>Algas</span><strong id="sample-algae">—</strong><small>indicador espectral</small></article>
-        <article class="sample-metric"><span>Cor da amostra</span><svg id="sample-swatch" viewBox="0 0 60 36" aria-hidden="true" style="width:60px"></svg><strong id="sample-color">—</strong><small id="sample-color-info">—</small></article>
-        <article class="sample-metric sample-contamination"><span>Contaminação estimada</span><strong id="sample-contamination">—</strong><small id="sample-contamination-class">—</small></article>
+        <article class="sample-metric"><span>Turbidez</span><strong id="am-ntu">—</strong><svg id="am-gauge" viewBox="-14 0 228 118" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:170px"></svg><span class="state-badge state-ok" id="am-classe"><i></i>—</span></article>
+        <article class="sample-metric"><span>Índice geral de qualidade</span><strong id="am-iq">—</strong><svg id="am-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:90px"></svg><span class="state-badge state-ok" id="am-status"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
+        <article class="sample-metric"><span>Cor da amostra</span><svg id="am-swatch" viewBox="0 0 72 72" aria-hidden="true" style="width:64px"></svg><strong id="am-cor">—</strong><small id="am-cor-info">—</small></article>
+        <article class="sample-metric sample-contamination"><span>Alerta principal</span><small id="am-alerta" style="font-size:14px;line-height:1.45">—</small></article>
       </div>
-      <p class="sample-summary" id="sample-summary"></p>
-      <p class="sample-summary" id="sample-alert"></p>
     </section>
 
     <section class="sync" id="sync-notice" aria-live="polite" data-reveal>
       <span class="sync-badge" id="sync-badge">Sincronização</span>
       <span><span id="sync-message">Leituras reais do ESP32 aparecem automaticamente aqui.</span> Última consulta ao banco: <strong id="data-updated">aguardando…</strong></span>
     </section>
-
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
         <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">% de luz que passou em cada cor, comparada com a água limpa (100%). Queda por igual em todas as cores = partículas (turbidez); queda maior no violeta 415 nm = matéria orgânica; queda no vermelho 680 nm = algas.</p></div>
@@ -122,23 +123,59 @@
       <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
       <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
     </section>
+    <section class="panel" id="assinatura" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Assinatura espectral</p><h2>Assinatura espectral</h2><p>Absorbância por canal do AS7341, A = −log10(amostra / branco). Picos mostram o que está presente na água.</p></div>
+        <div class="spectrum-legend" id="assin-legenda"></div></div>
+      <div class="chart-wrap tall" id="assin-wrap"><svg id="assin-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
+      <div class="chart-empty" id="assin-empty" hidden><strong>Aguardando amostras</strong><span>Grave a água limpa (BOOT → 1) e meça uma amostra com nome (ex.: n lagoa_p1).</span></div>
+    </section>
 
-    <div class="two-col" id="analise">
+    <section class="panel" id="indicadores" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Indicadores</p><h2>O que esta amostra indica</h2><p>Índices de absorbância da amostra selecionada. A barra vai de 0 a 0,40; abaixo de 0,05 baixo, até 0,20 moderado, acima alto.</p></div></div>
+      <div class="sample-metrics" id="indicadores-body"></div>
+    </section>
+
+    <div class="two-col" id="comparacao">
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Espectro de absorbância</h2><p>Absorbância estimada em cada cor: A = −log10(fração de luz que passou). Quanto mais alto, mais a água absorve aquela cor. Só os 8 pontos medidos, sem curva inventada entre eles.</p></div></div>
-        <div class="chart-wrap" id="absorb-wrap"><svg id="absorb-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
-        <div class="chart-empty" id="absorb-empty" hidden><strong>Aguardando amostra da lagoa</strong><span>A absorbância aparece com uma leitura válida.</span></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Comparação entre amostras</h2><p>Intensidade relativa (0 a 1): índices divididos por 0,40 e turbidez por 150 NTU. Mostra onde a lagoa fica entre a água boa e a podre.</p></div>
+          <div class="spectrum-legend"><span><i style="--c:#2f6fd0"></i>Algas</span><span><i style="--c:#ed7845"></i>Cianobactérias</span><span><i style="--c:#21b98a"></i>Matéria orgânica</span><span><i style="--c:#8452c6"></i>Sedimentos</span><span><i style="--c:#d6a417"></i>Turbidez</span></div></div>
+        <div class="chart-wrap" id="cmp-wrap"><svg id="cmp-chart" class="chart" role="img" aria-label="Comparação entre amostras"></svg></div>
+        <div class="chart-empty" id="cmp-empty" hidden><strong>Poucas amostras para comparar</strong><span>Meça a água boa (n agua_boa), a água podre (BOOT → 2) e os pontos da lagoa (n lagoa_p1...).</span></div>
       </section>
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Semelhança com as referências</h2><p>Quanto o espectro da lagoa se parece com cada referência: 100 · e<sup>−d/0,4</sup>, sendo d a distância entre os 8 canais de absorbância.</p><p id="sim-concl"></p></div></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Semelhança com as referências</h2><p>Quanto o espectro da amostra se parece com cada referência: 100 · e<sup>−d/0,4</sup>, sendo d a distância euclidiana entre os 8 canais de absorbância.</p></div></div>
         <div class="chart-wrap" id="sim-wrap"><svg id="sim-chart" class="chart" role="img" aria-label="Semelhança com as referências"></svg></div>
-        <div class="chart-empty" id="sim-empty" hidden><strong>Aguardando leitura válida da lagoa</strong><span>A semelhança aparece com uma leitura válida.</span></div>
+        <div class="chart-empty" id="sim-empty" hidden><strong>Sem referências</strong><span>O branco é a referência do cálculo e não é comparado. Referências: n agua_boa, BOOT → 2, n ref_cha, n ref_terra, n ref_algas.</span></div>
+        <p class="sample-summary" id="sim-concl" style="margin:0 28px 24px"></p>
       </section>
     </div>
 
-    <section class="panel" id="indicadores" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>O que esta amostra indica</h2><p>Os 5 indicadores do índice geral na última leitura válida da lagoa. A barra vai de 0 (igual à água limpa) a 1 (muito alto).</p></div></div>
-        <div class="sample-metrics" id="componentes-body"></div>
+    <section class="panel" id="validacao-diluicao" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Validação do sensor – série de diluição</h2><p>Absorbância no canal de maior absorção de cada corante contra a concentração. R² próximo de 1 comprova a relação linear prevista pela lei de Beer-Lambert e valida o equipamento.</p></div></div>
+      <div class="chart-wrap" id="dil-wrap"><svg id="dil-chart" class="chart" role="img" aria-label="Série de diluição"></svg></div>
+      <div class="chart-empty" id="dil-empty" hidden><strong>Ainda não há série de diluição</strong><span>Meça pelo menos 3 concentrações de cada corante: n dil_amarelo_25 → m, n dil_amarelo_50 → m, n dil_amarelo_100 → m.</span></div>
+    </section>
+
+    <section class="panel" id="historico" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Histórico dos pontos da lagoa</h2><p>Últimos 30 dias de leituras diárias. Linhas tracejadas: limites de turbidez da CONAMA 357/2005 para águas doces.</p></div>
+        <div class="spectrum-legend" id="hist-legenda"></div></div>
+      <div class="two-col" style="margin:0">
+        <div><p class="panel-kicker" id="hist-t-titulo" style="margin:0 28px">Turbidez (NTU)</p>
+          <div class="chart-wrap" id="hist-t-wrap"><svg id="hist-t-chart" class="chart" role="img" aria-label="Turbidez por dia"></svg></div>
+          <div class="chart-empty" id="hist-t-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
+        <div><p class="panel-kicker" style="margin:0 28px">Índices de clorofila (contínua) e matéria orgânica (tracejada)</p>
+          <div class="chart-wrap" id="hist-i-wrap"><svg id="hist-i-chart" class="chart" role="img" aria-label="Índices por dia"></svg></div>
+          <div class="chart-empty" id="hist-i-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="amostras-tabela" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Amostras</h2><p>Médias de 3 repetições por amostra. Clique numa linha para selecioná-la; clique no título da coluna para ordenar.</p></div></div>
+      <div class="table-toolbar"><label class="search-box" for="am-busca"><input id="am-busca" type="search" placeholder="Buscar amostra ou status" autocomplete="off"></label></div>
+      <div class="table-scroll"><table class="readings-table" id="am-tabela"><thead><tr>
+        <th data-k="nome">Amostra</th><th data-k="leitura">Data</th><th data-k="turbidez_ntu">Turbidez (NTU)</th><th data-k="turbidez_dp">DP turbidez</th>
+        <th data-k="clorofila">Clorofila</th><th data-k="cianobacterias">Cianobact.</th><th data-k="materia_organica">M. orgânica</th><th data-k="sedimentos">Sedimentos</th>
+        <th data-k="abs_dp">DP absorb.</th><th data-k="indice_geral">Índice geral</th><th data-k="status">Status</th></tr></thead><tbody id="am-tabela-body"></tbody></table></div>
     </section>
 
     <section class="panel" id="evolucao-espectral" data-reveal>
@@ -159,7 +196,6 @@
       <div class="chart-wrap tall" id="spectral-time-wrap"><svg id="spectral-time-chart" class="chart" role="img" aria-label="Evolução de cada cor ao longo do tempo"></svg></div>
       <div class="chart-empty" id="spectral-time-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
     </section>
-
     <div class="two-col">
       <section class="panel" data-reveal>
         <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
@@ -180,33 +216,6 @@
         </tbody></table></div>
       </section>
     </div>
-
-    <section class="panel" id="comparacao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Comparação entre amostras</h2><p>Intensidade relativa de 0 a 1 (índices ÷ 0,40; turbidez ÷ 150 NTU). Mostra onde a lagoa fica entre a água limpa e a água suja.</p></div></div>
-        <div class="chart-wrap" id="cmp-wrap"><svg id="cmp-chart" class="chart" role="img" aria-label="Comparação entre amostras"></svg></div>
-        <div class="chart-empty" id="cmp-empty" hidden><strong>Falta a água suja de referência</strong><span>Grave com BOOT → 2 para comparar.</span></div>
-    </section>
-
-    <section class="panel" id="validacao-diluicao" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Validação do sensor – série de diluição</h2><p>Absorbância no canal de maior absorção de cada corante contra a concentração. R² perto de 1 comprova a relação linear da lei de Beer-Lambert e valida o equipamento.</p></div></div>
-      <div class="chart-wrap" id="dil-wrap"><svg id="dil-chart" class="chart" role="img" aria-label="Série de diluição"></svg></div>
-      <div class="chart-empty" id="dil-empty" hidden><strong>Ainda não há série de diluição</strong><span>No monitor do ESP32, meça pelo menos 3 concentrações do mesmo corante: n dil_cafe_25 → m, n dil_cafe_50 → m, n dil_cafe_100 → m.</span></div>
-    </section>
-
-    <div class="two-col" id="historico">
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Turbidez nos últimos 30 dias</h2><p id="hist-t-description">Média por dia da água da lagoa. Linhas tracejadas: limites da CONAMA 357/2005 para águas doces.</p></div></div>
-        <div class="chart-wrap" id="hist-t-wrap"><svg id="hist-t-chart" class="chart" role="img" aria-label="Turbidez por dia"></svg></div>
-        <div class="chart-empty" id="hist-t-empty" hidden><strong>Histórico ainda curto</strong><span>O gráfico aparece com pelo menos 2 dias de medições válidas.</span></div>
-      </section>
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Clorofila, cianobactérias e matéria orgânica</h2><p>Média por dia dos índices de absorbância. Linhas tracejadas: 0,05 (moderado) e 0,20 (alto).</p></div>
-          <div class="spectrum-legend"><span><i style="--c:#21b98a"></i>Clorofila</span><span><i style="--c:#ed7845"></i>Cianobactérias</span><span><i style="--c:#7952c7"></i>M. orgânica</span></div></div>
-        <div class="chart-wrap" id="hist-i-wrap"><svg id="hist-i-chart" class="chart" role="img" aria-label="Índices por dia"></svg></div>
-        <div class="chart-empty" id="hist-i-empty" hidden><strong>Histórico ainda curto</strong><span>O gráfico aparece com pelo menos 2 dias de medições válidas.</span></div>
-      </section>
-    </div>
-
     <div class="two-col">
       <section class="panel" id="evolucao" data-reveal>
         <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Ao longo do dia</h2><p id="series-description">Água da lagoa, média a cada 10 minutos. As linhas tracejadas marcam as faixas de classificação.</p></div>

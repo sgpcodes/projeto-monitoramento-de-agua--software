@@ -1,4 +1,5 @@
 import math
+import re
 from datetime import date, timedelta
 
 from django.http import JsonResponse
@@ -518,7 +519,7 @@ def historico(request):
     linhas = (
         Leitura.objects.filter(collection__data_coleta__gte=inicio, tipo="amostra")
         .exclude(amostra__in=REFERENCIAS)
-        .exclude(amostra__startswith="dil_")
+        .filter(amostra__startswith="lagoa")
         .select_related("collection")
         .only("medido_em", "tipo", "amostra", "turbidez", "cores", "media", "saturado", "ganho", "collection__data_coleta")
     )
@@ -530,11 +531,13 @@ def historico(request):
         q = i["qualidade"]
         if i["suspeita"] or q is None:
             continue
-        por_dia.setdefault(leitura.collection.data_coleta, []).append((i, q))
+        por_dia.setdefault((leitura.collection.data_coleta, leitura.amostra), []).append((i, q))
     saida = []
-    for dia, grupo in sorted(por_dia.items()):
+    for (dia, ponto), grupo in sorted(por_dia.items()):
         saida.append({
             "data": dia.isoformat(),
+            "ponto": ponto,
+            "ponto_nome": qualidade.nome_amostra(ponto, "amostra"),
             "medicoes": len(grupo),
             "ntu": _numero(_media([q["ntu"] for _, q in grupo])),
             "turbidez": _numero(_media([i["turbidez"] for i, _ in grupo])),
@@ -543,7 +546,105 @@ def historico(request):
             "materia_organica": _numero(_media([q["materia_organica"] for _, q in grupo])),
             "indice_geral": _numero(_media([qualidade.indice_geral(q) for _, q in grupo])),
         })
-    return JsonResponse({"dias": dias, "historico": saida})
+    pontos = sorted({p["ponto"] for p in saida})
+    return JsonResponse({"dias": dias, "pontos": [{"id": p, "nome": qualidade.nome_amostra(p, "amostra")} for p in pontos], "historico": saida})
+
+
+REPETICOES = 3  # cada amostra = media das ultimas 3 medicoes validas com aquele nome
+
+
+def _resumo_amostra(id_, leituras, branco):
+    """Media e desvio das ultimas 3 medicoes validas de uma amostra."""
+    reps = []
+    for leitura in leituras:
+        i = _indices(leitura, {}, branco)
+        if not i["suspeita"] and i["qualidade"] is not None:
+            reps.append((leitura, i))
+        if len(reps) == REPETICOES:
+            break
+    if not reps:
+        return None
+    tipo = qualidade.tipo_amostra(id_, reps[0][0].tipo)
+    a = [[r[1]["qualidade"]["absorbancia"][c] for r in reps] for c in range(8)]
+    absorb = [0.0] * 8 if tipo == "branco" else [_media(v) for v in a]
+    abs_dp = _media([_desvio(v) or 0 for v in a]) if len(reps) > 1 else None
+    ntus = [r[1]["qualidade"]["ntu"] for r in reps if r[1]["qualidade"]["ntu"] is not None]
+    luz = _media([r[1]["turbidez"] for r in reps])
+    nir = [r[1]["qualidade"]["sedimentos"] for r in reps if r[1]["qualidade"]["sedimentos"] is not None]
+    porcentagens = [_media([r[1]["porcentagens"][c] for r in reps]) for c in range(8)]
+    ntu = _media(ntus)
+    ix = {
+        "clorofila": absorb[7] - absorb[5],
+        "cianobacterias": (absorb[5] + absorb[6]) / 2 - absorb[4],
+        "materia_organica": absorb[0] - absorb[3],
+        "sedimentos": _media(nir) if tipo != "branco" else (0.0 if nir else None),
+    }
+    q = {**ix, "absorbancia": absorb, "ntu": ntu, "turbidez_a": (absorb[5] + absorb[6]) / 2}
+    geral = 100 if tipo == "branco" else qualidade.indice_geral(q)
+    mais_recente = reps[0][0]
+    return {
+        "id": id_,
+        "nome": qualidade.nome_amostra(id_, mais_recente.tipo),
+        "tipo": tipo,
+        "leitura": timezone.localtime(mais_recente.medido_em).strftime("%d/%m/%Y %H:%M"),
+        "repeticoes": len(reps),
+        "absorbancia": [_numero(v) for v in absorb],
+        "abs_dp": _numero(abs_dp),
+        "turbidez_ntu": _numero(ntu),
+        "turbidez_dp": _numero(_desvio(ntus)),
+        "luz_bloqueada_pct": _numero(luz),
+        "classe_turbidez": qualidade.classe_texto(ntu),
+        **{k: _numero(v) for k, v in ix.items()},
+        "niveis": {k: qualidade.nivel_texto(v) for k, v in ix.items()},
+        "intensidades": {k: _numero(v) for k, v in (qualidade.intensidades(q) or {}).items()},
+        "indice_geral": geral,
+        "status": qualidade.status(geral),
+        "cor": qualidade.cor_amostra(porcentagens) if tipo != "branco" else {"hex": "#fbfeff", "nome": "Incolor", "lambda_dom_nm": None},
+    }
+
+
+def amostras(request):
+    """Todas as amostras com nome (como no design): indices, semelhanca, diluicao."""
+    branco = Leitura.objects.filter(tipo="branco").order_by("-medido_em").first()
+    nomes = (Leitura.objects.exclude(cores__isnull=True).values_list("amostra", flat=True).distinct())
+    lista = []
+    for id_ in sorted(set(nomes)):
+        recentes = list(Leitura.objects.filter(amostra=id_).exclude(cores__isnull=True).order_by("-medido_em")[:15])
+        resumo = _resumo_amostra(id_, recentes, branco)
+        if resumo:
+            lista.append(resumo)
+    ordem = {"branco": 0, "controle": 1, "lagoa": 2, "referencia": 3, "corante": 4, "outra": 5}
+    numerica = lambda t: [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", t)]  # dil_x_25 antes de dil_x_100
+    lista.sort(key=lambda a: (ordem[a["tipo"]], numerica(a["id"])))
+
+    # Referencias da semelhanca: agua boa (ou o branco), agua podre e as ref_/sim_.
+    por_id = {a["id"]: a for a in lista}
+    boa = por_id.get("agua_boa") or next((a for a in lista if a["tipo"] == "branco"), None)
+    refs = [r for r in [boa, por_id.get("agua_podre")] if r] + [a for a in lista if a["tipo"] == "referencia"]
+    for a in lista:
+        if a["tipo"] == "branco":
+            a["semelhanca"] = []
+            continue
+        sims = [
+            {"referencia_id": r["id"], "referencia": r["nome"],
+             "semelhanca_pct": qualidade.semelhanca(a["absorbancia"], r["absorbancia"])}
+            for r in refs if r["id"] != a["id"]
+        ]
+        a["semelhanca"] = sorted(sims, key=lambda x: -x["semelhanca_pct"])
+        ref = a["semelhanca"][0]["referencia"] if a["semelhanca"] else ""
+        ix = {k: a[k] for k in qualidade.TEXTOS}
+        a["referencia_mais_semelhante"] = ref
+        a["conclusao"] = qualidade.conclusao_amostra(a["nome"], a["turbidez_ntu"], a["luz_bloqueada_pct"], ix, ref, a["status"])
+        a["alerta"] = qualidade.alerta_amostra(a["turbidez_ntu"], ix)
+    for a in lista:
+        if a["tipo"] == "branco":
+            a["conclusao"], a["alerta"], a["referencia_mais_semelhante"] = (
+                "Referência do cálculo (absorbância zero por definição).", "Amostra de referência.", "")
+
+    comparar = [a["id"] for a in lista if a["id"] in ("agua_boa", "agua_podre") or a["tipo"] == "lagoa"]
+    diluicao = qualidade.serie_diluicao([(a["id"], a["absorbancia"]) for a in lista if a["tipo"] == "corante"])
+    padrao = next((a["id"] for a in lista if a["tipo"] == "lagoa"), lista[0]["id"] if lista else None)
+    return JsonResponse({"amostras": lista, "comparacao": comparar, "diluicao": diluicao, "padrao": padrao})
 
 
 def _numero(valor):

@@ -1,9 +1,9 @@
 """Indicadores de qualidade da agua a partir das 8 cores do AS7341.
 
 Tudo parte da absorbancia de cada cor, A = -log10(amostra / agua limpa):
-  clorofila         A(680) - A(590)
-  cianobacterias    A(630) - media(A(590), A(680))   (ficocianina)
-  materia organica  A(415) - A(555)
+  clorofila         A(680) - A(590)                  (o AS7341 nao tem 745 nm)
+  cianobacterias    media(A(590), A(630)) - A(555)    (ficocianina, como no design)
+  materia organica  A(415) - A(515)
   sedimentos        A(infravermelho ~910 nm)          (so particulas bloqueiam)
   turbidez          NTU do sensor de turbidez; sem ele, A media de 590 e 630 nm
 Indice geral = 100 x (1 - penalidade), pesos 30/20/20/15/15 (turbidez, clorofila,
@@ -55,8 +55,8 @@ def indices(porcentagens, ntu=None, a_nir=None):
     return {
         "absorbancia": a,
         "clorofila": a[7] - a[5],
-        "cianobacterias": a[6] - (a[5] + a[7]) / 2,
-        "materia_organica": a[0] - a[4],
+        "cianobacterias": (a[5] + a[6]) / 2 - a[4],
+        "materia_organica": a[0] - a[3],
         "sedimentos": a_nir,
         "turbidez_a": (a[5] + a[6]) / 2,
         "ntu": ntu,
@@ -185,3 +185,101 @@ def serie_diluicao(amostras):
             "r2": None if r2 is None else round(r2, 4),
         })
     return saida
+
+
+# ---- Amostras (como no design: media de 3 repeticoes por amostra) ----
+TEXTOS = {
+    "clorofila": ("Algas / clorofila", {
+        "alto": "Alta presença de algas, possível eutrofização (excesso de nutrientes).",
+        "moderado": "Presença moderada de algas. Acompanhar a tendência nos próximos dias.",
+        "baixo": "Pouca clorofila detectada."}),
+    "cianobacterias": ("Cianobactérias", {
+        "alto": "Assinatura compatível com cianobactérias, risco potencial de toxinas. Recomenda-se análise laboratorial.",
+        "moderado": "Sinal moderado de ficocianina. Possível presença de cianobactérias; confirmar em laboratório.",
+        "baixo": "Sem sinal relevante de cianobactérias."}),
+    "materia_organica": ("Matéria orgânica", {
+        "alto": "Matéria orgânica dissolvida elevada, possível decomposição ou esgoto.",
+        "moderado": "Matéria orgânica dissolvida moderada.",
+        "baixo": "Pouca matéria orgânica dissolvida."}),
+    "sedimentos": ("Sedimentos", {
+        "alto": "Partículas em suspensão elevadas, possível erosão ou revolvimento do fundo.",
+        "moderado": "Partículas em suspensão moderadas.",
+        "baixo": "Poucas partículas em suspensão."}),
+}
+NOMES_CURTOS = {"clorofila": "algas", "cianobacterias": "cianobactérias", "materia_organica": "matéria orgânica", "sedimentos": "sedimentos"}
+
+
+def nivel_texto(v):
+    if v is None:
+        return None
+    return "baixo" if v < LIMITES[0] else "moderado" if v <= LIMITES[1] else "alto"
+
+
+def classe_texto(ntu):
+    if ntu is None:
+        return "Sem leitura de NTU"
+    return "Compatível com classe 1" if ntu <= 40 else "Compatível com classes 2 e 3" if ntu <= 100 else "Fora dos limites CONAMA"
+
+
+def nome_amostra(id_, tipo):
+    if tipo == "branco":
+        return "Branco (água limpa)"
+    fixos = {"agua_boa": "Água boa", "agua_podre": "Água podre", "agua_limpa": "Água limpa", "lagoa": "Lagoa"}
+    if id_ in fixos:
+        return fixos[id_]
+    m = re.match(r"^lagoa_?p?(\w+)$", id_)
+    if m:
+        return f"Lagoa – Ponto {m.group(1).upper() if not m.group(1).isdigit() else m.group(1)}"
+    m = re.match(r"^(?:ref|sim)_(\w+)$", id_)
+    if m:
+        conhecidas = {"cha": "Chá (orgânico)", "terra": "Terra (sedimento)", "algas": "Água esverdeada (algas)"}
+        return conhecidas.get(m.group(1), f"Referência – {m.group(1).replace('_', ' ')}")
+    m = DILUICAO.match(id_)
+    if m:
+        return f"Corante {m.group(1)} {m.group(2)}%"
+    return id_.replace("_", " ").capitalize()
+
+
+def tipo_amostra(id_, tipo):
+    if tipo == "branco":
+        return "branco"
+    if id_ in ("agua_boa", "agua_podre"):
+        return "controle"
+    if id_.startswith("lagoa"):
+        return "lagoa"
+    if id_.startswith(("ref_", "sim_")):
+        return "referencia"
+    if id_.startswith("dil_"):
+        return "corante"
+    return "outra"
+
+
+def conclusao_amostra(nome, ntu, luz, ix, ref, st):
+    ordem = sorted((k for k in TEXTOS if ix.get(k) is not None), key=lambda k: ix[k], reverse=True)
+    if ntu is not None:
+        turb = f"turbidez de {ntu:.1f} NTU ({classe_texto(ntu).lower()})".replace(".", ",")
+    elif luz is not None:
+        turb = f"turbidez de {luz:.0f}% de luz bloqueada (sem NTU)"
+    else:
+        turb = "turbidez sem leitura"
+    forca = {"alto": "assinatura forte de", "moderado": "assinatura moderada de", "baixo": "assinatura fraca de"}
+    partes = [turb]
+    if ordem:
+        partes.append(f"{forca[nivel_texto(ix[ordem[0]])]} {NOMES_CURTOS[ordem[0]]}")
+    if len(ordem) > 1:
+        partes.append(f"nível {nivel_texto(ix[ordem[1]])} de {NOMES_CURTOS[ordem[1]]}")
+    frase = f"{nome}: " + ", ".join(partes[:-1]) + (" e " if len(partes) > 1 else "") + partes[-1] + "."
+    if ref:
+        frase += f" Espectro mais semelhante a: {ref.lower()}."
+    return frase + f" Status: {st}."
+
+
+def alerta_amostra(ntu, ix):
+    if ntu is not None and ntu > 100:
+        return "Turbidez acima de 100 NTU, fora dos limites da CONAMA 357/2005 para águas doces."
+    validos = [k for k in TEXTOS if ix.get(k) is not None]
+    if not validos:
+        return "Sem dados suficientes nesta amostra."
+    topo = max(validos, key=lambda k: ix[k])
+    nv = nivel_texto(ix[topo])
+    return TEXTOS[topo][1]["alto"] if nv == "alto" else TEXTOS[topo][1]["moderado"] if nv == "moderado" else "Nenhum indicador acima do nível baixo."
