@@ -3,12 +3,17 @@ services:
     name: monitoramento-agua
     runtime: python
     plan: free
+    healthCheckPath: /health/
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input
-    startCommand: gunicorn config.wsgi:application
+    startCommand: python manage.py migrate --noinput && gunicorn monitoramento_agua_core.wsgi:application
     envVars:
+      - key: DEBUG
+        value: "false"
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: DATABASE_URL
+        sync: false
+      - key: ESP32_API_KEY
         sync: false
       - key: SECRET_KEY
         generateValue: true
