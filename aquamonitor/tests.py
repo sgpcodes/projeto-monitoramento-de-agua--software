@@ -117,6 +117,14 @@ class DashboardDataTests(TestCase):
         self.assertAlmostEqual(payload["serie"][0]["contaminacao"], 35)
         self.assertGreater(payload["serie"][0]["algas"], 0.07)  # A680 - A590 com 50% e 60%
         self.assertEqual(payload["leituras"][0]["estado"], "Saturada")
+        niveis = {c["id"]: c["nivel"] for c in payload["componentes"]}
+        self.assertEqual(niveis["particulas"], "Alto")  # 40% bloqueada (acima de 35%)
+        self.assertEqual(niveis["algas"], "Moderado")  # indice 0,079
+        self.assertEqual(len(payload["espectro"]["absorbancia"]), 8)
+        self.assertEqual(payload["canais"]["rotulos"][-1], "NIR")
+        self.assertEqual(payload["canais"]["medicoes_dia"], 2)
+        self.assertEqual(len(payload["serie"][0]["porcentagens"]), 8)
+        self.assertTrue(any("suspeita" in o for o in payload["observacoes"]))
 
     def test_turbidity_from_colors_when_the_esp32_does_not_send_it(self):
         collection = Coleta.objects.create(data_coleta=date(2026, 10, 20))

@@ -33,6 +33,7 @@
   <nav class="nav-links" aria-label="Navegação principal">
     <a class="nav-link is-active" href="#overview">Visão geral</a>
     <a class="nav-link" href="#espectro">Espectro</a>
+    <a class="nav-link" href="#analise">Análise</a>
     <a class="nav-link" href="#evolucao">Evolução</a>
     <a class="nav-link" href="#coletas">Coletas</a>
     <a class="nav-link" href="#readings">Leituras</a>
@@ -104,13 +105,71 @@
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
         <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">% de luz que passou em cada cor, comparada com a água limpa (100%). Queda por igual em todas as cores = partículas (turbidez); queda maior no violeta 415 nm = matéria orgânica; queda no vermelho 680 nm = algas.</p></div>
+        <div>
         <div class="spectrum-legend" aria-label="Canais espectrais">
           <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
+        </div>
+        <div class="segmented" role="tablist" aria-label="Unidade do espectro" id="spectrum-mode">
+          <button type="button" role="tab" class="seg-btn is-active" data-modo="pct" aria-selected="true">% de luz</button>
+          <button type="button" role="tab" class="seg-btn" data-modo="contagem" aria-selected="false">Contagem crua</button>
+        </div>
         </div>
       </div>
       <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
       <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
     </section>
+
+    <div class="two-col" id="analise">
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Espectro de absorbância</h2><p>Absorbância estimada em cada cor: A = −log10(fração de luz que passou). Quanto mais alto, mais a água absorve aquela cor. Só os 8 pontos medidos, sem curva inventada entre eles.</p></div></div>
+        <div class="chart-wrap" id="absorb-wrap"><svg id="absorb-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
+        <div class="chart-empty" id="absorb-empty" hidden><strong>Aguardando amostra da lagoa</strong><span>A absorbância aparece com uma leitura válida.</span></div>
+      </section>
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Indicadores por componente</h2><p>Estimativas a partir da absorbância em cores específicas da última leitura válida da lagoa.</p></div></div>
+        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Componente</th><th>Valor</th><th>Nível</th></tr></thead><tbody id="componentes-body"></tbody></table></div>
+      </section>
+    </div>
+
+    <section class="panel" id="evolucao-espectral" data-reveal>
+      <div class="panel-heading">
+        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>% de luz que passou em cada cor, média a cada 10 minutos. Todas as linhas caindo juntas = turbidez; só o vermelho caindo = algas; só o violeta caindo = matéria orgânica.</p></div>
+        <div>
+        <div class="spectrum-legend" aria-label="Canais espectrais">
+          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
+        </div>
+        <div class="segmented" role="tablist" aria-label="Período" id="periodo-espectral">
+          <button type="button" role="tab" class="seg-btn" data-horas="1" aria-selected="false">1h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="6" aria-selected="false">6h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="12" aria-selected="false">12h</button>
+          <button type="button" role="tab" class="seg-btn is-active" data-horas="24" aria-selected="true">24h</button>
+        </div>
+        </div>
+      </div>
+      <div class="chart-wrap tall" id="spectral-time-wrap"><svg id="spectral-time-chart" class="chart" role="img" aria-label="Evolução de cada cor ao longo do tempo"></svg></div>
+      <div class="chart-empty" id="spectral-time-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
+    </section>
+
+    <div class="two-col">
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
+        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Observação</th></tr></thead><tbody id="observacoes-body"></tbody></table></div>
+      </section>
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Regiões espectrais</h2><p>O que cada canal do AS7341 indica na água.</p></div></div>
+        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Canal</th><th>λ (nm)</th><th>Cor</th><th>O que indica na água</th></tr></thead><tbody>
+          <tr><td>F1</td><td>415</td><td>Violeta</td><td style="white-space:normal">Matéria orgânica dissolvida (água amarelada) absorve forte aqui</td></tr>
+          <tr><td>F2</td><td>445</td><td>Azul</td><td style="white-space:normal">Clorofila (pico azul) e matéria orgânica</td></tr>
+          <tr><td>F3</td><td>480</td><td>Ciano</td><td style="white-space:normal">Carotenoides (pigmentos de algas)</td></tr>
+          <tr><td>F4</td><td>515</td><td>Verde</td><td style="white-space:normal">Pouca absorção dos pigmentos: mostra mais as partículas</td></tr>
+          <tr><td>F5</td><td>555</td><td>Verde-amarelo</td><td style="white-space:normal">Referência para a cor (comparada com o violeta)</td></tr>
+          <tr><td>F6</td><td>590</td><td>Amarelo</td><td style="white-space:normal">Partículas (turbidez) e referência para as algas</td></tr>
+          <tr><td>F7</td><td>630</td><td>Laranja</td><td style="white-space:normal">Partículas e ficocianina (cianobactérias)</td></tr>
+          <tr><td>F8</td><td>680</td><td>Vermelho</td><td style="white-space:normal">Clorofila-a (algas)</td></tr>
+          <tr><td>NIR</td><td>~910</td><td>Infravermelho</td><td style="white-space:normal">Quase só a luz da lanterna: serve para conferir a iluminação</td></tr>
+        </tbody></table></div>
+      </section>
+    </div>
 
     <div class="two-col">
       <section class="panel" id="evolucao" data-reveal>
@@ -133,7 +192,11 @@
 
     <div class="two-col">
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Sinais da última amostra</h2><p>Número cru captado em cada canal do sensor (passe o mouse para ver a %).</p></div><span class="pill-live"><i class="dot dot-live"></i>8 canais AS7341</span></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Comparativo de canais</h2><p id="canais-description">Contagem crua de cada canal na última leitura; a barrinha é o desvio padrão. Serve para conferir a lanterna e o sensor.</p></div>
+          <div class="segmented" role="tablist" aria-label="Leitura comparada" id="canais-mode">
+            <button type="button" role="tab" class="seg-btn is-active" data-canais="atual" aria-selected="true">Atual</button>
+            <button type="button" role="tab" class="seg-btn" data-canais="dia" aria-selected="false">Média do dia</button>
+          </div></div>
         <div class="chart-wrap" id="live-wrap"><svg id="live-chart" class="chart" role="img" aria-label="Leitura ao vivo por canal"></svg></div>
         <div class="chart-empty" id="live-empty" hidden><strong>Aguardando leitura do sensor</strong><span>Os canais aparecem assim que uma amostra chegar.</span></div>
       </section>
@@ -164,6 +227,11 @@
         </tbody></table>
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>
+    </section>
+
+    <section class="sync" data-reveal>
+      <span class="sync-badge">Sobre a análise</span>
+      <span>O AS7341 mede a luz em 8 cores. As porcentagens comparam a amostra com a água limpa gravada no aparelho; os indicadores são estimativas e devem ser confirmados com análises de laboratório.</span>
     </section>
 
     <footer class="page-footer"><strong>AquaMonitor</strong><span>Universidade de Vassouras, Engenharia de Software. Maricá, outubro de 2026.</span></footer>

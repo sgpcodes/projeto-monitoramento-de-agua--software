@@ -99,8 +99,15 @@ def _indices(leitura, metricas):
         "contaminacao": contaminacao,
         "turbidez": luz_bloqueada,
         "ntu": turbidez.get("ntu"),
+        "absorbancia": absorb,
         "algas": _diferenca(absorb[7], absorb[5]),  # 680 - 590 nm: clorofila
         "cor": _diferenca(absorb[0], absorb[4]),  # 415 - 555 nm: materia organica
+        # 630 nm: ficocianina (cianobacterias), descontando a media de 590 e 680 nm.
+        "cianobacterias": (
+            None
+            if None in (absorb[5], absorb[6], absorb[7])
+            else absorb[6] - (absorb[5] + absorb[7]) / 2
+        ),
         "suspeita": bool(leitura.saturado)
         or any(p is not None and p > SUSPEITA_PCT for p in porcentagens),
     }
@@ -113,6 +120,14 @@ def _diferenca(a, b):
 def _media(valores):
     valores = [v for v in valores if v is not None]
     return sum(valores) / len(valores) if valores else None
+
+
+def _desvio(valores):
+    valores = [v for v in valores if v is not None]
+    if len(valores) < 2:
+        return None
+    media = sum(valores) / len(valores)
+    return math.sqrt(sum((v - media) ** 2 for v in valores) / (len(valores) - 1))
 
 
 def _estado(leitura, indices):
@@ -138,9 +153,94 @@ def _serie(lagoa):
                 campo: _numero(_media([i[campo] for i in grupo]))
                 for campo in ("contaminacao", "turbidez", "ntu", "algas", "cor")
             },
+            "porcentagens": [
+                _numero(_media([i["porcentagens"][c] for i in grupo])) for c in range(8)
+            ],
         }
         for chave, grupo in sorted(blocos.items())
     ]
+
+
+# Faixas dos indicadores (as mesmas do ESP32; cianobacterias e estimativa inicial).
+FAIXAS = {
+    "particulas": (15, 35),
+    "materia_organica": (0.03, 0.10),
+    "algas": (0.02, 0.08),
+    "cianobacterias": (0.02, 0.06),
+}
+
+
+def _nivel(valor, faixa):
+    if valor is None:
+        return None
+    return "Baixo" if valor < faixa[0] else "Moderado" if valor < faixa[1] else "Alto"
+
+
+def _componentes(indices):
+    valores = {
+        "particulas": indices["turbidez"],
+        "materia_organica": indices["cor"],
+        "algas": indices["algas"],
+        "cianobacterias": indices["cianobacterias"],
+    }
+    textos = {
+        "particulas": ("Partículas suspensas (turbidez)", "luz bloqueada em 590–630 nm", "%"),
+        "materia_organica": ("Matéria orgânica dissolvida", "absorção extra no violeta 415 nm (vs. 555 nm)", ""),
+        "algas": ("Pigmentos de algas (clorofila)", "absorção extra no vermelho 680 nm (vs. 590 nm)", ""),
+        "cianobacterias": ("Pigmentos de cianobactérias", "absorção extra no laranja 630 nm (ficocianina)", ""),
+    }
+    return [
+        {
+            "id": chave,
+            "nome": textos[chave][0],
+            "como": textos[chave][1],
+            "unidade": textos[chave][2],
+            "valor": _numero(valores[chave]),
+            "nivel": _nivel(valores[chave], FAIXAS[chave]),
+        }
+        for chave in ("particulas", "materia_organica", "algas", "cianobacterias")
+    ]
+
+
+def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
+    """Frases tiradas dos dados (regras simples, sem chute)."""
+    obs = []
+    if minutos_sem_enviar is not None and minutos_sem_enviar > OFFLINE_MIN:
+        obs.append(f"O aparelho está sem enviar há {minutos_sem_enviar} minutos: confira energia e Wi-Fi.")
+    if atual_indices:
+        pct = [p for p in atual_indices["porcentagens"] if p is not None]
+        contam = atual_indices["contaminacao"]
+        if pct and max(pct) < 5:
+            obs.append("Quase não passa luz em nenhuma cor (menos de 5%): confira se a lanterna está acesa "
+                       "e alinhada, ou regrave a água limpa. As análises abaixo não valem até isso ser resolvido.")
+        elif contam is not None and contam > 100:
+            obs.append(f"Contaminação acima de 100% ({contam:.0f}%): a amostra bloqueia mais luz que a água suja "
+                       "de referência. Confira a lanterna ou regrave as referências.")
+    com_contam = [p for p in serie if p["contaminacao"] is not None]
+    if len(com_contam) >= 2:
+        recente = com_contam[-1]
+        alvo = recente["hora"]
+        h, m = map(int, alvo.split(":"))
+        limite = h * 60 + m - 360  # 6 horas antes
+        antigo = next((p for p in com_contam if int(p["hora"][:2]) * 60 + int(p["hora"][3:]) >= limite), com_contam[0])
+        delta = recente["contaminacao"] - antigo["contaminacao"]
+        if abs(delta) >= 5:
+            sentido = "subiu" if delta > 0 else "caiu"
+            obs.append(f"A contaminação {sentido} {abs(delta):.0f} pontos desde as {antigo['hora']} "
+                       f"(de {antigo['contaminacao']:.0f}% para {recente['contaminacao']:.0f}%).")
+        else:
+            obs.append(f"A contaminação está estável em torno de {recente['contaminacao']:.0f}% desde as {antigo['hora']}.")
+    if atual_indices:
+        for comp in _componentes(atual_indices):
+            if comp["nivel"] in ("Moderado", "Alto") and comp["id"] != "particulas":
+                obs.append(f"{comp['nome']}: nível {comp['nivel'].lower()}, pela {comp['como']}.")
+        turb = atual_indices["turbidez"]
+        if turb is not None:
+            obs.append(f"Turbidez: {turb:.0f}% da luz bloqueada pelas partículas "
+                       f"(nível {_nivel(turb, FAIXAS['particulas']).lower()}).")
+    if suspeitas:
+        obs.append(f"{suspeitas} leituras suspeitas hoje (sensor estourado ou luz de fora) ficaram fora dos gráficos.")
+    return obs
 
 
 def _dados_painel(data_selecionada, leituras, metricas):
@@ -178,6 +278,8 @@ def _dados_painel(data_selecionada, leituras, metricas):
                         "porcentagens": [_numero(p) for p in porcentagens],
                     }
                 ],
+                "contagens": [_numero(atual.media[canal]) for canal in CHANNELS[:8]],
+                "absorbancia": [_numero(a) for a in atual_indices["absorbancia"]],
             }
         live = {
             "rotulos": rotulos,
@@ -193,6 +295,19 @@ def _dados_painel(data_selecionada, leituras, metricas):
             "nome": atual.amostra,
             "hora": timezone.localtime(atual.medido_em).strftime("%H:%M:%S"),
             "suspeita": atual_indices["suspeita"],
+        }
+
+    # Comparativo de canais: leitura atual x media do dia (lagoa, leituras validas).
+    canais = None
+    if atual:
+        nomes = list(CHANNELS[:8]) + ["nir"]
+        canais = {
+            "rotulos": [str(int(c.split("_")[1])) for c in CHANNELS[:8]] + ["NIR"],
+            "atual": [_numero(atual.media.get(c)) for c in nomes],
+            "desvio": [_numero((atual.desvio or {}).get(c)) for c in nomes],
+            "media_dia": [_numero(_media([l.media.get(c) for l, _ in validas])) for c in nomes],
+            "desvio_dia": [_numero(_desvio([l.media.get(c) for l, _ in validas])) for c in nomes],
+            "medicoes_dia": len(validas),
         }
 
     minutos_sem_enviar = None
@@ -245,6 +360,14 @@ def _dados_painel(data_selecionada, leituras, metricas):
             if i["turbidez"] is not None and i["ntu"] is not None
         ],
         "amostra_atual": amostra_atual,
+        "canais": canais,
+        "componentes": _componentes(atual_indices) if atual else [],
+        "observacoes": _observacoes(
+            serie,
+            atual_indices if atual else None,
+            sum(indices[leitura.pk]["suspeita"] for leitura in leituras),
+            minutos_sem_enviar,
+        ),
         "diagnostico": diagnostico,
         "turbidez": turbidez,
         "espectro": espectro,
