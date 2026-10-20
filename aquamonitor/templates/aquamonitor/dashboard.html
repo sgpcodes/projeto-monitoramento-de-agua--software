@@ -76,8 +76,8 @@
     <section class="kpi-grid" aria-label="Resumo da coleta">
       <article class="kpi-card" data-reveal><span class="kpi-label">Total de leituras</span><strong class="kpi-value" data-count="{{ total_leituras|default:0 }}">{{ total_leituras }}</strong><span class="kpi-note">registros nesta coleta</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Amostras analisadas</span><strong class="kpi-value" data-count="{{ total_amostras|default:0 }}">{{ total_amostras }}</strong><span class="kpi-note">amostras distintas</span></article>
-      <article class="kpi-card" data-reveal><span class="kpi-label">Leituras saturadas</span><strong class="kpi-value" data-count="{{ estouradas|default:0 }}">{{ estouradas }}</strong><span class="kpi-note">sinal no limite do sensor</span></article>
-      <article class="kpi-card" data-reveal><span class="kpi-label">Última leitura</span><strong class="kpi-value kpi-value-time">{% if ultima_leitura %}{{ ultima_leitura.medido_em|date:"H:i" }}{% else %}—{% endif %}</strong><span class="kpi-note">{% if ultima_leitura %}medição mais recente{% else %}sem medições nesta data{% endif %}</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Leituras suspeitas</span><strong class="kpi-value" data-count="{{ suspeitas|default:0 }}">{{ suspeitas }}</strong><span class="kpi-note">sensor estourado ou luz de fora (fora dos gráficos)</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Última leitura</span><strong class="kpi-value kpi-value-time">{% if ultima_leitura %}{{ ultima_leitura.medido_em|date:"H:i" }}{% else %}—{% endif %}</strong><span class="kpi-note" id="kpi-ultima-nota">{% if ultima_leitura %}medição mais recente{% else %}sem medições nesta data{% endif %}</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
     </section>
 
@@ -103,7 +103,7 @@
 
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
-        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Leituras do sensor por comprimento de onda (nm).</p></div>
+        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">% de luz que passou em cada cor, comparada com a água limpa (100%). Queda por igual em todas as cores = partículas (turbidez); queda maior no violeta 415 nm = matéria orgânica; queda no vermelho 680 nm = algas.</p></div>
         <div class="spectrum-legend" aria-label="Canais espectrais">
           <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
         </div>
@@ -114,31 +114,31 @@
 
     <div class="two-col">
       <section class="panel" id="evolucao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Semana a semana</h2><p>Tendência do índice escolhido.</p></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Ao longo do dia</h2><p id="series-description">Água da lagoa, média a cada 10 minutos. As linhas tracejadas marcam as faixas de classificação.</p></div>
           <div class="segmented" role="tablist" aria-label="Índice do gráfico">
-            <button type="button" role="tab" class="seg-btn is-active" data-index="algas" aria-selected="true">Algas</button>
+            <button type="button" role="tab" class="seg-btn is-active" data-index="contaminacao" aria-selected="true">Contaminação</button>
             <button type="button" role="tab" class="seg-btn" data-index="turbidez" aria-selected="false">Turbidez</button>
+            <button type="button" role="tab" class="seg-btn" data-index="algas" aria-selected="false">Algas</button>
             <button type="button" role="tab" class="seg-btn" data-index="cor" aria-selected="false">Cor</button>
-            <button type="button" role="tab" class="seg-btn" data-index="secchi" aria-selected="false">Transparência</button>
           </div></div>
-        <div class="chart-wrap" id="series-wrap"><svg id="series-chart" class="chart" role="img" aria-label="Evolução semanal"></svg></div>
-        <div class="chart-empty" id="series-empty" hidden><strong>Ainda não há série histórica</strong><span>O gráfico aparece com pelo menos duas medições.</span></div>
+        <div class="chart-wrap" id="series-wrap"><svg id="series-chart" class="chart" role="img" aria-label="Evolução ao longo do dia"></svg></div>
+        <div class="chart-empty" id="series-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
       </section>
       <section class="panel" id="validacao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Turbidez × Transparência</h2><p>Cada ponto é uma coleta. Pontos descendo indicam que o sensor concorda com o disco de Secchi.</p></div></div>
-        <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão"></svg></div>
-        <div class="chart-empty" id="scatter-empty" hidden><strong>Falta a transparência (Secchi)</strong><span>O gráfico aparece quando as coletas tiverem essa medida.</span></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Sensor de cor × sensor de turbidez</h2><p>Cada ponto é uma medição da lagoa. Se os pontos sobem juntos (na diagonal), os dois sensores concordam e a turbidez é confiável.</p></div></div>
+        <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão: luz bloqueada × NTU"></svg></div>
+        <div class="chart-empty" id="scatter-empty" hidden><strong>Falta o sensor de turbidez (NTU)</strong><span>O gráfico aparece quando o sensor de turbidez enviar valores em NTU.</span></div>
       </section>
     </div>
 
     <div class="two-col">
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Sinais da última amostra</h2><p>Intensidade em cada canal do sensor.</p></div><span class="pill-live"><i class="dot dot-live"></i>8 canais AS7341</span></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Sinais da última amostra</h2><p>Número cru captado em cada canal do sensor (passe o mouse para ver a %).</p></div><span class="pill-live"><i class="dot dot-live"></i>8 canais AS7341</span></div>
         <div class="chart-wrap" id="live-wrap"><svg id="live-chart" class="chart" role="img" aria-label="Leitura ao vivo por canal"></svg></div>
         <div class="chart-empty" id="live-empty" hidden><strong>Aguardando leitura do sensor</strong><span>Os canais aparecem assim que uma amostra chegar.</span></div>
       </section>
       <section class="panel" id="chart-section" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>Medições de amostras na data selecionada.</p></div></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>% da luz bloqueada pelas partículas (590–630 nm, sensor de cor), média a cada 10 minutos.</p></div></div>
         <div class="chart-wrap" id="turbidity-wrap"><svg id="turbidity-chart" class="chart" role="img" aria-label="Turbidez por horário"></svg></div>
         <div class="chart-empty" id="turbidity-empty" hidden><strong>Sem dados para exibir</strong><span>As medições aparecerão aqui quando chegarem.</span></div>
       </section>
@@ -158,9 +158,9 @@
         <button class="export-button" id="export-csv" type="button">Exportar CSV</button>
       </div>
       <div class="table-scroll">
-        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>LED</th><th>Réplica</th><th>Turbidez</th><th>Estado</th></tr></thead>
+        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>Contaminação</th><th>Turbidez</th><th>Estado</th></tr></thead>
         <tbody id="readings-body">
-        {% for leitura in leituras %}<tr data-sample="{{ leitura.amostra|lower }}" data-type="{{ leitura.tipo }}"><td class="time-cell">{{ leitura.medido_em|date:"H:i:s" }}</td><td class="sample-cell">{{ leitura.amostra }}</td><td><span class="type-badge type-{{ leitura.tipo }}">{{ leitura.tipo }}</span></td><td>{{ leitura.led }}</td><td>{{ leitura.replica }}</td><td class="numeric-cell">{{ leitura.metricas.turbidez|floatformat:3|default:"—" }}</td><td>{% if leitura.saturado %}<span class="state-badge state-warning"><i></i>Saturada</span>{% else %}<span class="state-badge state-ok"><i></i>Normal</span>{% endif %}</td></tr>{% endfor %}
+        {% for leitura in leituras %}<tr data-sample="{{ leitura.amostra|lower }}" data-type="{{ leitura.tipo }}"><td class="time-cell">{{ leitura.hora }}</td><td class="sample-cell">{{ leitura.amostra }}</td><td><span class="type-badge type-{{ leitura.tipo }}">{{ leitura.tipo }}</span></td><td class="numeric-cell">{% if leitura.contaminacao is not None %}{{ leitura.contaminacao|floatformat:0 }}%{% else %}—{% endif %}</td><td class="numeric-cell">{% if leitura.turbidez is not None %}{{ leitura.turbidez|floatformat:0 }}%{% if leitura.turbidez_classe %} · {{ leitura.turbidez_classe }}{% endif %}{% else %}—{% endif %}</td><td>{% if leitura.estado == "Normal" %}<span class="state-badge state-ok"><i></i>Normal</span>{% else %}<span class="state-badge state-warning"><i></i>{{ leitura.estado }}</span>{% endif %}</td></tr>{% endfor %}
         </tbody></table>
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>

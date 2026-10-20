@@ -37,6 +37,11 @@
   const colors = ["#7952c7", "#4c78ed", "#18a6d5", "#21b98a", "#94bf36", "#e8a926", "#ed7845", "#e34e5a"];
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const fmt = (n, d) => Number(n).toLocaleString("pt-BR", d == null ? {} : { maximumFractionDigits: d });
+  const NOMES_CORES = ["Violeta", "Azul", "Ciano", "Verde", "Verde-amarelo", "Amarelo", "Laranja", "Vermelho"];
+  // Rotulos de hora sem embolar: no maximo ~8 no eixo.
+  const passoRotulo = (n) => Math.max(1, Math.ceil(n / 8));
+  // Teto "redondo" para o eixo: as 4 divisoes caem em numeros inteiros (ex.: 0, 15, 30, 45, 60).
+  const tetoRedondo = (v, passo) => Math.ceil(v / passo) * passo;
 
   /* ---------- utilitários SVG ---------- */
   const addSVG = (parent, tag, attrs = {}) => {
@@ -73,18 +78,18 @@
     setChartState("turbidity-wrap", "turbidity-empty", pts.length > 0);
     if (!chart || !pts.length) return;
     const W = 900, H = 230, m = { t: 16, r: 20, b: 34, l: 54 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
-    let min = Math.min(...pts.map((p) => p.turbidez)), max = Math.max(...pts.map((p) => p.turbidez));
-    if (min === max) { min -= Math.max(Math.abs(min) * 0.1, 0.1); max += Math.max(Math.abs(max) * 0.1, 0.1); }
-    const pad = (max - min) * 0.15; min -= pad; max += pad;
+    // Escala fixa a partir de 0%: uma variacao pequena nao parece um desastre.
+    const min = 0, max = tetoRedondo(Math.max(40, Math.max(...pts.map((p) => p.turbidez)) * 1.15), 20);
     const x = (i) => m.l + (pts.length === 1 ? pw / 2 : (i / (pts.length - 1)) * pw);
     const y = (v) => m.t + ((max - v) / (max - min)) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
       const v = max - ((max - min) * i) / 4, ly = y(v);
       addSVG(chart, "line", { x1: m.l, y1: ly, x2: W - m.r, y2: ly, class: "grid-line" });
-      svgText(chart, m.l - 10, ly + 4, v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+      svgText(chart, m.l - 10, ly + 4, `${Math.round(v)}%`, { class: "axis-text", "text-anchor": "end" });
     }
-    pts.forEach((p, i) => svgText(chart, x(i), H - 10, p.hora, { class: "axis-text", "text-anchor": "middle" }));
+    const passo = passoRotulo(pts.length);
+    pts.forEach((p, i) => { if (i % passo === 0) svgText(chart, x(i), H - 10, p.hora, { class: "axis-text", "text-anchor": "middle" }); });
     const line = pts.map((p, i) => `${i ? "L" : "M"} ${x(i)} ${y(p.turbidez)}`).join(" ");
     const defs = addSVG(chart, "defs");
     const g = addSVG(defs, "linearGradient", { id: "tf", x1: 0, y1: 0, x2: 0, y2: 1 });
@@ -92,7 +97,7 @@
     addSVG(g, "stop", { offset: "100%", "stop-color": "#19b5c8", "stop-opacity": "0" });
     addSVG(chart, "path", { d: `${line} L ${x(pts.length - 1)} ${H - m.b} L ${x(0)} ${H - m.b} Z`, fill: "url(#tf)", class: animClass("t", "anim-fade") });
     addSVG(chart, "path", { d: line, class: `series-line ${animClass("t", "anim-line")}`, stroke: "#0a8fa8", pathLength: 1 });
-    pts.forEach((p, i) => addSVG(chart, "circle", { cx: x(i), cy: y(p.turbidez), r: 5, fill: "#fff", stroke: "#0a8fa8", class: `series-dot ${animClass("t", "anim-fade")}`, "data-tip": `${p.hora} · ${p.amostra}: ${p.turbidez.toFixed(2)}` }));
+    pts.forEach((p, i) => addSVG(chart, "circle", { cx: x(i), cy: y(p.turbidez), r: pts.length > 40 ? 3 : 5, fill: "#fff", stroke: "#0a8fa8", class: `series-dot ${animClass("t", "anim-fade")}`, "data-tip": `${p.hora} · ${p.amostra}: ${fmt(p.turbidez, 1)}% da luz bloqueada` }));
     markDrawn("t");
   }
 
@@ -103,18 +108,25 @@
     setChartState("spectrum-wrap", "spectrum-empty", ok);
     if (!chart || !ok) return;
     const W = 900, H = 320, m = { t: 24, r: 24, b: 58, l: 66 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const counts = sp.unidade === "Contagem digital", pct = sp.unidade === "% de luz que passou";
     let min = Math.min(...values), max = Math.max(...values);
-    if (min === max) max += Math.max(Math.abs(max) * 0.1, 0.1);
-    const pad = Math.max((max - min) * 0.12, max * 0.04); min = Math.max(0, min - pad); max += pad;
+    if (pct) { min = 0; max = tetoRedondo(Math.max(100, max + 5), 25); } // 0 a 125%: a agua limpa e a linha dos 100%
+    else {
+      if (min === max) max += Math.max(Math.abs(max) * 0.1, 0.1);
+      const pad = Math.max((max - min) * 0.12, max * 0.04); min = Math.max(0, min - pad); max += pad;
+      if ($("spectrum-description")) $("spectrum-description").textContent = `${sp.unidade || "Absorbância (u.a.)"} por comprimento de onda (nm).`;
+    }
     const x = (i) => m.l + (values.length === 1 ? pw / 2 : (i / (values.length - 1)) * pw);
     const y = (v) => m.t + ((max - v) / (max - min)) * ph;
-    const counts = sp.unidade === "Contagem digital";
-    if ($("spectrum-description")) $("spectrum-description").textContent = `${sp.unidade || "Absorbância (u.a.)"} por comprimento de onda (nm).`;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
       const v = max - ((max - min) * i) / 4, ly = y(v);
       addSVG(chart, "line", { x1: m.l, y1: ly, x2: W - m.r, y2: ly, class: "grid-line" });
-      svgText(chart, m.l - 10, ly + 4, counts ? Math.round(v).toLocaleString("pt-BR") : v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+      svgText(chart, m.l - 10, ly + 4, counts ? Math.round(v).toLocaleString("pt-BR") : pct ? `${Math.round(v)}%` : v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+    }
+    if (pct) {
+      addSVG(chart, "line", { x1: m.l, y1: y(100), x2: W - m.r, y2: y(100), class: "grid-line", stroke: "#1f9d74", "stroke-dasharray": "6 5" });
+      svgText(chart, W - m.r, y(100) - 6, "água limpa (100%)", { class: "axis-text", "text-anchor": "end" });
     }
     const P = values.map((v, i) => ({ x: x(i), y: y(v) }));
     const defs = addSVG(chart, "defs");
@@ -131,8 +143,8 @@
       svgText(chart, x(i), H - 30, sp.etiquetas?.[i] || labels[i], { class: "axis-text", "text-anchor": "middle" });
       svgText(chart, x(i), H - 12, `${labels[i]} nm`, { class: "axis-text", "text-anchor": "middle" });
       const pc = sp.semanas[0].porcentagens?.[i];
-      const txt = counts ? `${fmt(v)} contagens${pc == null ? "" : ` · ${pc}%`}` : `absorbância ${v.toFixed(4)}`;
-      addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 6, fill: "#fff", stroke: colors[i], class: `series-dot ${animClass("s", "anim-fade")}`, "data-tip": `${cores[i]?.nome || "Canal"} · ${labels[i]} nm · ${txt}` });
+      const txt = pct ? `${fmt(v, 1)}% da luz passou` : counts ? `${fmt(v)} contagens${pc == null ? "" : ` · ${pc}%`}` : `absorbância ${v.toFixed(4)}`;
+      addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 6, fill: "#fff", stroke: colors[i], class: `series-dot ${animClass("s", "anim-fade")}`, "data-tip": `${sp.etiquetas?.[i] || NOMES_CORES[i]} · ${labels[i]} nm · ${txt}` });
     });
     markDrawn("s");
   }
@@ -154,10 +166,81 @@
       const bh = (v / maxV) * ph, bx = m.l + i * (bw + gap), pc = live.porcentagens?.[i];
       addSVG(chart, "rect", { x: bx, y: m.t + ph - bh, width: bw, height: bh, rx: 7, fill: colors[i % 8], opacity: 0.9,
         class: `bar-live ${animClass("l", "anim-bar")}`, style: `animation-delay:${i * 0.07}s`,
-        "data-tip": `${cores[i]?.nome || "Canal"} · ${labels[i]} nm · ${fmt(v)} contagens${pc == null ? "" : ` · ${pc}%`}` });
+        "data-tip": `${NOMES_CORES[i] || "Canal"} · ${labels[i]} nm · ${fmt(v)} contagens${pc == null ? "" : ` · ${pc}% da luz passou`}` });
       svgText(chart, bx + bw / 2, H - 20, labels[i], { class: "axis-text", "text-anchor": "middle" });
     });
     markDrawn("l");
+  }
+
+  /* ---------- evolucao ao longo do dia (abas) ---------- */
+  // Faixas iguais as do ESP32: a linha tracejada marca onde a palavra muda.
+  const INDICES = {
+    contaminacao: { nome: "Contaminação", unidade: "%", casas: 0, teto: 100, faixas: [[10, "levemente contaminada"], [30, "contaminada"], [60, "muito contaminada"]],
+      texto: "Onde a lagoa está entre a água limpa (0%) e a água suja de referência (100%)." },
+    turbidez: { nome: "Turbidez", unidade: "% luz bloqueada", casas: 0, teto: 40, faixas: [[5, "levemente turva"], [15, "turva"], [35, "muito turva"]],
+      texto: "Luz bloqueada pelas partículas em 590–630 nm (sensor de cor)." },
+    algas: { nome: "Algas", unidade: "", casas: 3, teto: 0.1, faixas: [[0.02, "sinal fraco"], [0.08, "algas presentes"]],
+      texto: "Absorção extra no vermelho 680 nm (clorofila) em relação ao amarelo 590 nm." },
+    cor: { nome: "Cor", unidade: "", casas: 3, teto: 0.12, faixas: [[0.03, "levemente amarelada"], [0.1, "cor de chá"]],
+      texto: "Absorção extra no violeta 415 nm (matéria orgânica dissolvida) em relação ao verde 555 nm." },
+  };
+  let indiceAtual = "contaminacao", ultimaSerie = [];
+  function renderSeriesChart(serie = ultimaSerie) {
+    ultimaSerie = serie;
+    const chart = $("series-chart"), cfg = INDICES[indiceAtual];
+    const pts = serie.filter((p) => Number.isFinite(p[indiceAtual]));
+    setChartState("series-wrap", "series-empty", pts.length > 1);
+    if ($("series-description")) $("series-description").textContent = `${cfg.texto} Água da lagoa, média a cada 10 minutos.`;
+    if (!chart || pts.length < 2) return;
+    const W = 900, H = 260, m = { t: 18, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const maior = Math.max(cfg.teto, Math.max(...pts.map((p) => p[indiceAtual])) * 1.15);
+    const min = 0, max = cfg.casas ? maior : tetoRedondo(maior, 20);
+    const x = (i) => m.l + (i / (pts.length - 1)) * pw;
+    const y = (v) => m.t + ((max - clamp(v, min, max)) / (max - min)) * ph;
+    const rotulo = (v) => (cfg.unidade === "%" || cfg.unidade.startsWith("%") ? `${Math.round(v)}%` : v.toFixed(cfg.casas));
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    for (let i = 0; i <= 4; i++) {
+      const v = max - ((max - min) * i) / 4, ly = y(v);
+      addSVG(chart, "line", { x1: m.l, y1: ly, x2: W - m.r, y2: ly, class: "grid-line" });
+      svgText(chart, m.l - 10, ly + 4, rotulo(v), { class: "axis-text", "text-anchor": "end" });
+    }
+    cfg.faixas.filter(([v]) => v < max).forEach(([v, nome]) => {
+      addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line", stroke: "#d19a2b", "stroke-dasharray": "6 5" });
+      svgText(chart, W - m.r, y(v) - 5, nome, { class: "axis-text", "text-anchor": "end" });
+    });
+    const passo = passoRotulo(pts.length);
+    pts.forEach((p, i) => { if (i % passo === 0) svgText(chart, x(i), H - 10, p.hora, { class: "axis-text", "text-anchor": "middle" }); });
+    const line = pts.map((p, i) => `${i ? "L" : "M"} ${x(i)} ${y(p[indiceAtual])}`).join(" ");
+    addSVG(chart, "path", { d: line, class: "series-line", stroke: "#0a8fa8", pathLength: 1 });
+    pts.forEach((p, i) => addSVG(chart, "circle", { cx: x(i), cy: y(p[indiceAtual]), r: pts.length > 40 ? 3 : 5, fill: "#fff", stroke: "#0a8fa8", class: "series-dot",
+      "data-tip": `${p.hora} · ${cfg.nome}: ${rotulo(p[indiceAtual])}${cfg.unidade && cfg.unidade !== "%" ? ` ${cfg.unidade.replace("% ", "")}` : ""} · ${p.medicoes} medições` }));
+  }
+  document.querySelectorAll(".seg-btn").forEach((btn) => btn.addEventListener("click", () => {
+    indiceAtual = btn.dataset.index;
+    document.querySelectorAll(".seg-btn").forEach((b) => { b.classList.toggle("is-active", b === btn); b.setAttribute("aria-selected", String(b === btn)); });
+    renderSeriesChart();
+  }));
+
+  /* ---------- validacao: sensor de cor x sensor de turbidez ---------- */
+  function renderScatterChart(pares = []) {
+    const chart = $("scatter-chart");
+    const pts = pares.filter((p) => Number.isFinite(p.turbidez) && Number.isFinite(p.ntu));
+    setChartState("scatter-wrap", "scatter-empty", pts.length > 1);
+    if (!chart || pts.length < 2) return;
+    const W = 900, H = 260, m = { t: 18, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const maxX = tetoRedondo(Math.max(40, ...pts.map((p) => p.turbidez)) * 1.1, 20), maxY = tetoRedondo(Math.max(20, ...pts.map((p) => p.ntu)) * 1.1, 20);
+    const x = (v) => m.l + (v / maxX) * pw, y = (v) => m.t + ((maxY - v) / maxY) * ph;
+    chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
+    for (let i = 0; i <= 4; i++) {
+      const vy = (maxY * i) / 4, vx = (maxX * i) / 4;
+      addSVG(chart, "line", { x1: m.l, y1: y(vy), x2: W - m.r, y2: y(vy), class: "grid-line" });
+      svgText(chart, m.l - 10, y(vy) + 4, `${Math.round(vy)}`, { class: "axis-text", "text-anchor": "end" });
+      svgText(chart, x(vx), H - 24, `${Math.round(vx)}%`, { class: "axis-text", "text-anchor": "middle" });
+    }
+    svgText(chart, m.l + pw / 2, H - 6, "luz bloqueada (sensor de cor)  →", { class: "axis-label", "text-anchor": "middle" });
+    svgText(chart, m.l + 6, m.t + 10, "NTU (sensor de turbidez)", { class: "axis-label" });
+    pts.forEach((p) => addSVG(chart, "circle", { cx: x(p.turbidez), cy: y(p.ntu), r: 4, fill: "#19b5c8", "fill-opacity": 0.55, stroke: "#0a8fa8", class: "series-dot",
+      "data-tip": `${p.hora} · ${fmt(p.turbidez, 1)}% luz bloqueada · ${fmt(p.ntu, 1)} NTU` }));
   }
 
   /* ---------- tabelas ---------- */
@@ -169,20 +252,22 @@
     list.forEach((r) => {
       const tr = document.createElement("tr");
       tr.dataset.sample = r.amostra.toLocaleLowerCase("pt-BR"); tr.dataset.type = r.tipo;
-      const turb = r.turbidez == null ? "—" : r.turbidez_unidade ? `${fmt(r.turbidez)} ${r.turbidez_unidade}` : Number(r.turbidez).toFixed(3);
-      [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["", r.led], ["", String(r.replica)], ["numeric-cell", turb]].forEach(([cls, text], i) => {
+      const contam = r.contaminacao == null ? "—" : `${Math.round(r.contaminacao)}%`;
+      const turb = r.turbidez == null ? "—" : `${Math.round(r.turbidez)}%${r.turbidez_classe ? ` · ${r.turbidez_classe}` : ""}`;
+      [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb]].forEach(([cls, text], i) => {
         const td = tr.insertCell(); if (cls) td.className = cls;
         if (i === 2) { const b = document.createElement("span"); b.className = `type-badge type-${r.tipo}`; b.textContent = text; td.append(b); }
         else td.textContent = text;
       });
       const st = document.createElement("span");
-      st.className = `state-badge ${r.saturado ? "state-warning" : "state-ok"}`;
-      st.append(document.createElement("i"), document.createTextNode(r.saturado ? "Saturada" : "Normal"));
+      const estado = r.estado || (r.saturado ? "Saturada" : "Normal");
+      st.className = `state-badge ${estado === "Normal" ? "state-ok" : "state-warning"}`;
+      st.append(document.createElement("i"), document.createTextNode(estado));
       tr.insertCell().append(st); body.append(tr);
     });
     if (!list.length) {
       const tr = body.insertRow(); tr.dataset.empty = "true";
-      const td = tr.insertCell(); td.colSpan = 7; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
+      const td = tr.insertCell(); td.colSpan = 6; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
     }
     rows = [...body.querySelectorAll("tr:not([data-empty])")];
     filterReadings();
@@ -241,14 +326,17 @@
     const dg = data.diagnostico;
     if ($("sample-analysis")) $("sample-analysis").hidden = !dg;
     if (dg) {
-      const last = data.leituras?.find((r) => r.tipo === "amostra");
+      const atual = data.amostra_atual, tb = data.turbidez || {};
+      const luz = tb.luz_bloqueada_pct == null ? null : `${fmt(tb.luz_bloqueada_pct, 0)}% da luz bloqueada`;
       Object.entries({
-        "sample-name": last?.amostra || "—", "sample-time": last?.hora || data.ultima_leitura || "—",
-        "sample-turbidity": data.turbidez?.ntu == null ? "—" : `${fmt(data.turbidez.ntu)} NTU`,
-        "sample-turbidity-class": dg.turbidez || "—",
-        "sample-voltage": data.turbidez?.tensao_v == null ? "—" : `${fmt(data.turbidez.tensao_v)} V`,
+        "sample-name": atual?.nome || "—", "sample-time": atual?.hora || data.ultima_leitura || "—",
+        "sample-turbidity": tb.ntu != null ? `${fmt(tb.ntu, 1)} NTU` : tb.luz_bloqueada_pct != null ? `${fmt(tb.luz_bloqueada_pct, 0)}%` : "—",
+        "sample-turbidity-class": [dg.turbidez, tb.ntu != null ? luz : luz && "luz bloqueada (sensor de cor)"].filter(Boolean).join(" · ") || "—",
+        "sample-voltage": tb.tensao_v == null ? "—" : `${fmt(tb.tensao_v)} V`,
         "sample-algae": dg.algas || "—", "sample-color": dg.cor || "—",
-        "sample-contamination": `${dg.contaminacao_pct}%`, "sample-contamination-class": dg.contaminacao || "—", "sample-summary": dg.resumo || "",
+        "sample-contamination": dg.contaminacao_pct == null ? "—" : `${dg.contaminacao_pct}%`,
+        "sample-contamination-class": dg.contaminacao || "falta gravar a água suja de referência",
+        "sample-summary": dg.resumo || "",
       }).forEach(([id, v]) => setText(id, v));
     }
     if ($("sync-badge")) $("sync-badge").textContent = data.demo ? "Dados de demonstração" : "Sincronização";
@@ -256,18 +344,18 @@
       ? "Valores de exemplo; não foram enviados pelo Arduino nem gravados no banco."
       : "Leituras reais do ESP32 aparecem automaticamente aqui.";
     const kpis = document.querySelectorAll(".kpi-card [data-count]");
-    [data.total_leituras, data.total_amostras, data.estouradas].forEach((v, i) => setNumber(kpis[i], Number(v) || 0, firstRender));
-    setText("kpi-contaminacao", dg ? `${dg.contaminacao_pct}%` : "—");
+    [data.total_leituras, data.total_amostras, data.suspeitas ?? data.estouradas].forEach((v, i) => setNumber(kpis[i], Number(v) || 0, firstRender));
+    setText("kpi-contaminacao", dg?.contaminacao_pct == null ? "—" : `${dg.contaminacao_pct}%`);
     if ($("kpi-contaminacao-badge")) $("kpi-contaminacao-badge").textContent = dg?.contaminacao || "—";
     const latest = document.querySelector(".kpi-value-time"); if (latest) latest.textContent = data.ultima_leitura || "—";
+    if ($("kpi-ultima-nota")) $("kpi-ultima-nota").textContent = !data.ultima_leitura ? "sem medições nesta data"
+      : data.aparelho_parado ? `aparelho sem enviar há ${data.minutos_sem_enviar} min` : "medição mais recente";
     if ($("data-updated")) $("data-updated").textContent = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(data.atualizado_em ? new Date(data.atualizado_em) : new Date());
     updateSampleFilter(data.leituras || []);
-    renderReadings(data); renderTurbidityChart(data.chart_data || []); renderSpectrumChart(data); renderLiveChart(data); renderColetasTable();
+    renderReadings(data); renderTurbidityChart(data.chart_data || []); renderSpectrumChart(data); renderLiveChart(data);
+    renderSeriesChart(data.serie || []); renderScatterChart(data.comparacao || []); renderColetasTable();
     firstRender = false;
   }
-  setChartState("series-wrap", "series-empty", false);
-  setChartState("scatter-wrap", "scatter-empty", false);
-  const seg = document.querySelector(".segmented"); if (seg) seg.hidden = true;
   $("reading-search")?.addEventListener("input", filterReadings);
   $("sample-filter")?.addEventListener("change", filterReadings);
   $("type-filter")?.addEventListener("change", filterReadings);
