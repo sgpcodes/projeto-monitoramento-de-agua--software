@@ -33,6 +33,9 @@ class Leitura(models.Model):
     desvio = models.JSONField()
     turbidez_mv = models.FloatField(null=True, blank=True)
     dp_turbidez_mv = models.FloatField(null=True, blank=True)
+    turbidez = models.JSONField(null=True, blank=True)
+    cores = models.JSONField(null=True, blank=True)
+    diagnostico = models.JSONField(null=True, blank=True)
     dados_originais = models.JSONField()
 
     class Meta:
