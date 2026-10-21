@@ -864,7 +864,7 @@
   const cv = $("bubbles");
   if (cv && !reduce) {
     const ctx = cv.getContext("2d"); let w, h, dpr;
-    const bubbles = Array.from({ length: 38 }, () => ({ x: Math.random(), y: Math.random(), r: 2 + Math.random() * 9, s: 0.15 + Math.random() * 0.45, ph: Math.random() * 6.3 }));
+    const bubbles = Array.from({ length: 38 }, () => ({ x: Math.random(), y: Math.random(), r: 2 + Math.random() * 9, s: 0.15 + Math.random() * 0.45, ph: Math.random() * 6.3, opacity: 0.55 + Math.random() * 0.35 }));
     const size = () => { dpr = Math.min(devicePixelRatio || 1, 2); w = cv.width = innerWidth * dpr; h = cv.height = innerHeight * dpr; };
     size(); addEventListener("resize", size);
     (function loop(t) {
@@ -872,11 +872,24 @@
       const boost = 1 + Math.min(Math.abs(velocity), 80) * 0.12;
       bubbles.forEach((b) => {
         b.y -= (b.s * boost * dpr) / innerHeight * 0.6; if (b.y < -0.05) { b.y = 1.05; b.x = Math.random(); }
-        const px = (b.x + Math.sin(t / 1500 + b.ph) * 0.012) * w, py = b.y * h, r = b.r * dpr;
+        const drift = Math.sin(t / 1100 + b.ph) * 0.018 + Math.sin(t / 2300 + b.ph * 1.7) * 0.006;
+        const px = (b.x + drift) * w, py = b.y * h, r = b.r * dpr;
+        const fill = ctx.createRadialGradient(px - r * 0.36, py - r * 0.4, r * 0.04, px, py, r * 1.15);
+        fill.addColorStop(0, `rgba(255,255,255,${b.opacity})`);
+        fill.addColorStop(0.28, `rgba(219,250,255,${b.opacity * 0.48})`);
+        fill.addColorStop(0.72, `rgba(57,177,204,${b.opacity * 0.12})`);
+        fill.addColorStop(1, `rgba(255,255,255,${b.opacity * 0.42})`);
         ctx.beginPath(); ctx.arc(px, py, r, 0, 6.283);
-        ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.fill();
-        ctx.strokeStyle = "rgba(10,124,153,.28)"; ctx.lineWidth = dpr; ctx.stroke();
-        ctx.beginPath(); ctx.arc(px - r * 0.3, py - r * 0.3, r * 0.22, 0, 6.283); ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.fill();
+        ctx.fillStyle = fill; ctx.fill();
+        const rim = ctx.createLinearGradient(px - r, py - r, px + r, py + r);
+        rim.addColorStop(0, `rgba(255,255,255,${b.opacity * 0.9})`);
+        rim.addColorStop(0.55, `rgba(34,150,180,${b.opacity * 0.35})`);
+        rim.addColorStop(1, `rgba(255,255,255,${b.opacity * 0.72})`);
+        ctx.strokeStyle = rim; ctx.lineWidth = Math.max(0.7 * dpr, r * 0.12); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(px - r * 0.28, py - r * 0.34, r * 0.24, r * 0.13, -0.6, 0, 6.283);
+        ctx.fillStyle = `rgba(255,255,255,${b.opacity})`; ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + r * 0.12, py + r * 0.28, r * 0.48, r * 0.18, 0.7, 0.2, 2.1);
+        ctx.strokeStyle = `rgba(255,255,255,${b.opacity * 0.38})`; ctx.lineWidth = Math.max(0.5 * dpr, r * 0.07); ctx.stroke();
       });
       velocity *= 0.92; requestAnimationFrame(loop);
     })(0);
