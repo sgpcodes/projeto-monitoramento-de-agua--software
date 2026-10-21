@@ -9,6 +9,7 @@
   --surface-raised:rgba(255,255,255,.85); --table-head:rgba(232,247,250,.7);
   --nav-border:rgba(255,255,255,.8); --card-border:rgba(255,255,255,.85);
   --depth-a:#f6feff; --depth-b:#e3f7fa; --depth-c:#cdeef5;
+  --sea-shallow:#36c6d4; --sea-deep:#087b9d; --sea-surface:#a8f0f1; --sea-surface-deep:#31b7cb;
   --ease:cubic-bezier(.22,1,.36,1);
   --p:0; --hp:0;
 }
@@ -20,6 +21,7 @@
   --surface-raised:rgba(20,42,50,.9); --table-head:rgba(44,78,87,.48);
   --nav-border:rgba(140,210,220,.17); --card-border:rgba(140,210,220,.15);
   --depth-a:#0a151a; --depth-b:#102a33; --depth-c:#14343f;
+  --sea-shallow:#1b8294; --sea-deep:#07516d; --sea-surface:#56b9c8; --sea-surface-deep:#146b7d;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:90px}
@@ -95,10 +97,14 @@ button,input,select{font:inherit;color:inherit}
 .drop-body{transform-box:fill-box;transform-origin:center;transform:perspective(180px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:transform .22s var(--ease)}
 @keyframes float{50%{transform:translate(-50%,-56%)}}
 .waves{position:absolute;left:0;bottom:0;z-index:0;width:100%;height:160px;pointer-events:none}
-.waves path{animation:sway 14s ease-in-out infinite alternate;transition:fill 1.2s ease}
-.w1{fill:rgba(25,181,200,.16)}.w2{fill:rgba(114,213,224,.28);animation-duration:19s!important;animation-direction:alternate-reverse!important}
-[data-theme="dark"] .w1{fill:rgba(16,100,115,.24)}[data-theme="dark"] .w2{fill:rgba(11,47,58,.5)}
+.waves .w1,.waves .w2{animation:sway 14s ease-in-out infinite alternate;transition:opacity 1.2s ease}
+.w1{fill:url(#seaDepth);opacity:.78}
+.w2{fill:url(#seaSurface);opacity:.6;animation-duration:19s!important;animation-direction:alternate-reverse!important}
+.w-glint{fill:none;stroke:url(#seaGlint);stroke-linecap:round;stroke-width:2.5;filter:drop-shadow(0 0 4px rgba(255,255,255,.55));animation:sway 17s ease-in-out infinite alternate,water-glimmer 5s ease-in-out infinite}
+.w-glint-b{stroke-width:1.5;opacity:.65;animation-duration:21s,7s!important;animation-delay:-3s,-2s}
+[data-theme="dark"] .w1{opacity:.9}[data-theme="dark"] .w2{opacity:.72}
 @keyframes sway{to{transform:translateX(-60px)}}
+@keyframes water-glimmer{50%{opacity:.28}}
 
 /* conteúdo */
 .page-content{width:calc(100% - 56px);margin:0 auto;padding:0 0 50px}

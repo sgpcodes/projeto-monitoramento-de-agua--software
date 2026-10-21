@@ -44,8 +44,26 @@
       </div>
     </div>
     <svg class="waves" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="seaDepth" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sea-shallow)"/>
+          <stop offset="1" stop-color="var(--sea-deep)"/>
+        </linearGradient>
+        <linearGradient id="seaSurface" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sea-surface)"/>
+          <stop offset="1" stop-color="var(--sea-surface-deep)"/>
+        </linearGradient>
+        <linearGradient id="seaGlint" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".24" stop-color="#fff" stop-opacity=".9"/>
+          <stop offset=".58" stop-color="#b8fbff" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
       <path class="w1" d="M0 80C240 20 480 140 720 80S1200 20 1440 80V112C1200 148 960 104 720 124S240 150 0 112Z"/>
       <path class="w2" d="M0 100C240 60 480 150 720 100S1200 60 1440 100V122C1200 158 960 116 720 134S240 158 0 122Z"/>
+      <path class="w-glint w-glint-a" d="M0 80C240 20 480 140 720 80S1200 20 1440 80"/>
+      <path class="w-glint w-glint-b" d="M100 102C340 62 500 148 740 102S1220 62 1440 102"/>
     </svg>
   </section>
 
