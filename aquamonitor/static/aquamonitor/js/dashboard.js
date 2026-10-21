@@ -352,6 +352,30 @@
       "data-tip": `${p.hora} · ${fmt(p.turbidez, 1)}% luz bloqueada · ${fmt(p.ntu, 1)} NTU` }));
   }
 
+  /* ---------- pagina Agora: turbidez e indice geral da ultima leitura ---------- */
+  function renderQualidadeAgora(data) {
+    if (!$("agora-qualidade")) return;
+    const q = data?.qualidade, tb = data?.turbidez || {};
+    setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
+    if (!q?.valida) {
+      setText("ag-ntu", "—"); setText("ag-iq", "—"); renderGaugeAmostra(null, "ag-gauge");
+      badge($("ag-classe"), "sem leitura válida", false); badge($("ag-status"), "sem leitura válida", false);
+      setText("ag-conclusao", q?.alerta || "Ainda não há leitura válida da lagoa hoje.");
+      const sem = $("ag-sem"); if (sem) sem.replaceChildren();
+      return;
+    }
+    const ntu = q.ntu;
+    setText("ag-ntu", ntu != null ? `${fx(ntu, 1)} NTU` : tb.luz_bloqueada_pct != null ? `${fx(tb.luz_bloqueada_pct, 0)}% luz bloqueada` : "—");
+    renderGaugeAmostra(ntu, "ag-gauge");
+    const classe = ntu == null ? "Sem leitura de NTU (estimado pelo sensor de cor)" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Fora dos limites CONAMA";
+    badge($("ag-classe"), classe, ntu != null && ntu <= 40);
+    setText("ag-iq", `${q.indice_geral} de 100`);
+    const sem = $("ag-sem");
+    if (sem) { sem.replaceChildren(); [["alerta", VERMELHO], ["atenção", AMBAR], ["bom", VERDE]].forEach(([n, c], i) => addSVG(sem, "circle", { cx: 12 + i * 30, cy: 10, r: 8, fill: c, opacity: q.status === n ? 1 : 0.2 })); }
+    badge($("ag-status"), q.status, q.status === "bom");
+    setText("ag-conclusao", q.conclusao || "");
+  }
+
   /* ---------- amostras (como no design: media de 3 repeticoes por amostra) ---------- */
   const VERDE = "#1f9d74", AMBAR = "#d19a2b", VERMELHO = "#d2504a";
   const fx = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -394,8 +418,8 @@
     sel.value = selecionada || "";
   }
 
-  function renderGaugeAmostra(ntu) {
-    const svg = $("am-gauge"); if (!svg) return;
+  function renderGaugeAmostra(ntu, id = "am-gauge") {
+    const svg = $(id); if (!svg) return;
     svg.replaceChildren(); svg.style.display = Number.isFinite(ntu) ? "" : "none";
     if (!Number.isFinite(ntu)) return;
     const MAX = 200, cx = 100, cy = 100, R = 80;
@@ -784,6 +808,7 @@
   function renderDashboard(data) {
     if (!data || data.data !== shell?.dataset.selectedDate) return;
     const dg = data.diagnostico;
+    renderQualidadeAgora(data);
     if ($("sync-badge")) $("sync-badge").textContent = data.demo ? "Dados de demonstração" : "Sincronização";
     if ($("sync-message")) $("sync-message").textContent = data.demo
       ? "Valores de exemplo; não foram enviados pelo Arduino nem gravados no banco."
