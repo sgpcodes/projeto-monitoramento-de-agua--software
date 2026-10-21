@@ -744,15 +744,21 @@
       const contam = r.contaminacao == null ? "—" : `${Math.round(r.contaminacao)}%`;
       const turb = r.turbidez == null ? "—" : `${Math.round(r.turbidez)}%${r.turbidez_classe ? ` · ${r.turbidez_classe}` : ""}`;
       const num = (v, casas) => (v == null ? "—" : Number(v).toFixed(casas));
+      const ntu = num(r.ntu, 1), clorofila = num(r.clorofila, 3), cianobacterias = num(r.cianobacterias, 3);
+      const materiaOrganica = num(r.materia_organica, 3), sedimentos = num(r.sedimentos, 3);
+      const indiceGeral = r.indice_geral ?? "—", status = r.status || "—";
+      const estado = r.estado || (r.saturado ? "Saturada" : "Normal");
+      const csvValues = [r.hora, r.amostra, r.tipo_display, contam, turb, ntu, clorofila, cianobacterias,
+        materiaOrganica, sedimentos, indiceGeral, status, estado];
+      tr.dataset.csvValues = JSON.stringify(csvValues);
       [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb],
-        ["numeric-cell", num(r.ntu, 1)], ["numeric-cell", num(r.clorofila, 3)], ["numeric-cell", num(r.cianobacterias, 3)],
-        ["numeric-cell", num(r.materia_organica, 3)], ["numeric-cell", num(r.sedimentos, 3)], ["numeric-cell", r.indice_geral ?? "—"], ["", r.status || "—"]].forEach(([cls, text], i) => {
+        ["numeric-cell", ntu], ["numeric-cell", clorofila], ["numeric-cell", cianobacterias],
+        ["numeric-cell", materiaOrganica], ["numeric-cell", sedimentos], ["numeric-cell", indiceGeral], ["", status]].forEach(([cls, text], i) => {
         const td = tr.insertCell(); if (cls) td.className = cls;
         if (i === 2) { const b = document.createElement("span"); b.className = `type-badge type-${r.tipo}`; b.textContent = text; td.append(b); }
         else td.textContent = text;
       });
       const st = document.createElement("span");
-      const estado = r.estado || (r.saturado ? "Saturada" : "Normal");
       st.className = `state-badge ${estado === "Normal" ? "state-ok" : "state-warning"}`;
       st.append(document.createElement("i"), document.createTextNode(estado));
       tr.insertCell().append(st); body.append(tr);
@@ -854,15 +860,26 @@
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / READINGS_PER_PAGE));
     if (currentReadingsPage < totalPages) { currentReadingsPage++; filterReadings(); }
   });
-  $("export-csv")?.addEventListener("click", () => {
+  function exportReadings(format) {
     if (!filteredRows.length) return;
-    const heads = [...document.querySelectorAll("#readings thead th")].map((c) => c.textContent.trim());
-    const esc = (v) => `"${v.replaceAll('"', '""')}"`;
-    const csv = [heads, ...filteredRows.map((r) => [...r.cells].map((c) => c.textContent.trim()))].map((l) => l.map(esc).join(",")).join("\r\n");
-    const a = document.createElement("a"), url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
-    a.href = url; a.download = `aquamonitor-${shell?.dataset.selectedDate ?? "leituras"}.csv`;
+    const heads = ["Horário", "Amostra", "Tipo", "Contaminação", "Turbidez", "NTU", "Clorofila", "Cianobact.",
+      "M. orgânica", "Sedimentos", "Índice geral", "Status", "Estado"];
+    const records = filteredRows.map((r) => JSON.parse(r.dataset.csvValues));
+    const isCsv = format === "csv";
+    const content = isCsv
+      ? [heads, ...records].map((line) => line.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\r\n")
+      : [heads, ...records].map((line) => line.map((v) => String(v).replace(/[\t\r\n]+/g, " ")).join("\t")).join("\r\n");
+    const date = isCsv
+      ? shell?.dataset.selectedDate ?? "leituras"
+      : $("registros-data")?.value || shell?.dataset.selectedDate || "leituras";
+    const extension = isCsv ? "csv" : "txt";
+    const mimeType = isCsv ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8";
+    const a = document.createElement("a"), url = URL.createObjectURL(new Blob(["\uFEFF", content], { type: mimeType }));
+    a.href = url; a.download = `aquamonitor-${date}.${extension}`;
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
+  }
+  $("export-csv")?.addEventListener("click", () => exportReadings("csv"));
+  $("export-txt")?.addEventListener("click", () => exportReadings("txt"));
 
   /* ---------- relógio, saúde da API e dados em tempo real ---------- */
   const clock = () => { if ($("live-clock")) $("live-clock").textContent = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()); };

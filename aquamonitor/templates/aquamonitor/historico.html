@@ -33,9 +33,10 @@
         <label class="select-label" for="sample-filter">Amostra<select id="sample-filter"><option value="">Todas as amostras</option></select></label>
         <label class="select-label" for="type-filter">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="amostra">Amostra</option><option value="branco">Branco</option><option value="escuro">Escuro</option></select></label>
         <button class="export-button" id="export-csv" type="button">Exportar CSV</button>
+        <button class="export-button" id="export-txt" type="button">Exportar TXT</button>
       </div>
       <div class="table-scroll">
-        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>Contaminação</th><th>Turbidez</th><th>NTU</th><th>Clorofila</th><th>Cianobact.</th><th>M. orgânica</th><th>Sedimentos</th><th>Índice geral</th><th>Status</th><th>Estado</th></tr></thead>
+        <table class="readings-table"><thead><tr><th scope="col">Horário</th><th scope="col">Amostra</th><th scope="col">Tipo</th><th scope="col">Contaminação</th><th scope="col">Turbidez</th><th scope="col">NTU</th><th scope="col">Clorofila</th><th scope="col">Cianobact.</th><th scope="col">M. orgânica</th><th scope="col">Sedimentos</th><th scope="col">Índice geral</th><th scope="col">Status</th><th scope="col">Estado</th></tr></thead>
         <tbody id="readings-body"></tbody></table>
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>
