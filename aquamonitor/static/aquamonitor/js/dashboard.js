@@ -821,7 +821,9 @@
     root.style.setProperty("--hp", clamp(scrollY / (vh * 0.8)).toFixed(4));
     if (gauge) gauge.textContent = `${Math.round(clamp(scrollY / max) * 30)} m`;
     reveals.forEach((el) => {
-      const r = reduce ? 1 : clamp((vh * 0.98 - el.getBoundingClientRect().top) / (vh * 0.38));
+      const box = el.getBoundingClientRect();
+      // Inteiro na tela (ou fim da pagina) = nitido: o ultimo painel nunca sobe o bastante.
+      const r = reduce || (box.top >= 0 && box.bottom <= vh) || scrollY >= max - 4 ? 1 : clamp((vh * 0.98 - box.top) / (vh * 0.38));
       el.style.setProperty("--r", r.toFixed(3));
       el.classList.toggle("is-in", r > 0.55);
     });

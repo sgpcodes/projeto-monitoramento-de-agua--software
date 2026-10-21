@@ -194,3 +194,5 @@ button,input,select{font:inherit;color:inherit}
 .readings-table th{font-size:14px}.readings-table td{font-size:15px}
 .type-badge,.state-badge{font-size:14px}
 .spectrum-legend span{font-size:14px}
+/* Ondas paradas e cobrindo a largura toda */
+.waves path{animation:none!important}
