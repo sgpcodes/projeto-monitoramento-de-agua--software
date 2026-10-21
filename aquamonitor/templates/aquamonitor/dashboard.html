@@ -89,7 +89,7 @@
     <section class="kpi-grid" aria-label="Resumo da coleta">
       <article class="kpi-card" data-reveal><span class="kpi-label">Total de leituras</span><strong class="kpi-value" data-count="{{ total_leituras|default:0 }}">{{ total_leituras }}</strong><span class="kpi-note">registros nesta coleta</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Amostras analisadas</span><strong class="kpi-value" data-count="{{ total_amostras|default:0 }}">{{ total_amostras }}</strong><span class="kpi-note">amostras distintas</span></article>
-      <article class="kpi-card" data-reveal><span class="kpi-label">Leituras suspeitas</span><strong class="kpi-value" data-count="{{ suspeitas|default:0 }}">{{ suspeitas }}</strong><span class="kpi-note">pouca luz, sensor estourado ou luz de fora (fora dos gráficos)</span></article>
+      <article class="kpi-card" data-reveal><span class="kpi-label">Leituras suspeitas</span><strong class="kpi-value" data-count="{{ suspeitas|default:0 }}">{{ suspeitas }}</strong><span class="kpi-note">pouca luz, sensor estourado, luz de fora ou lanterna que mudou (fora dos gráficos)</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Última leitura</span><strong class="kpi-value kpi-value-time">{% if ultima_leitura %}{{ ultima_leitura.medido_em|date:"H:i" }}{% else %}—{% endif %}</strong><span class="kpi-note" id="kpi-ultima-nota">{% if ultima_leitura %}medição mais recente{% else %}sem medições nesta data{% endif %}</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
     </section>

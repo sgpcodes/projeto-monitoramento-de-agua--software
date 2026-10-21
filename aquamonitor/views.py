@@ -74,6 +74,14 @@ NOMES_CORES = ["Violeta", "Azul", "Ciano", "Verde", "Verde-amarelo", "Amarelo", 
 INTERVALO_MIN = 10  # graficos do dia: media a cada 10 minutos
 OFFLINE_MIN = 3  # sem leitura nova ha mais que isso: aparelho parado
 SUSPEITA_PCT = 110  # mais luz que na agua limpa: luz de fora ou lanterna mexida
+# Cruzamento dos sensores (ver _indices): sensor de turbidez limpo + queda plana no de cor.
+# Sensor de turbidez "sem lama": estimativa ate 500 NTU (~4,05 V). Perto de 4,2 V a curva
+# e muito ingreme (0,03 V de ruido ja da ~90 NTU), por isso o limite e folgado; agua com
+# lama de verdade derruba a tensao bem mais (agua podre de 21/10: 3,65 V, ~1.670 NTU).
+TURBIDEZ_LIMPA_NTU = 500
+ESPECTRO_PLANO_PCT = 8  # as 8 cores com no maximo 8 pontos de diferenca = queda por igual
+LUZ_MUDOU_PCT = 20  # a partir disso avisa que a luz mudou
+LUZ_MUDOU_FORTE_PCT = 50  # a partir disso a leitura e suspeita (fora dos graficos)
 LUZ_FRACA = 1000  # canal CLEAR abaixo disso: sinal fraco demais (mesmo limite do ESP32)
 
 
@@ -175,6 +183,17 @@ def _indices(leitura, metricas, branco=None):
         # Mesma conta do ESP32: luz bloqueada no amarelo 590 e laranja 630 nm.
         fracao = math.sqrt(max(porcentagens[5], 0) / 100 * max(porcentagens[6], 0) / 100)
         luz_bloqueada = min(100.0, max(0.0, (1 - fracao) * 100))
+    sensor = _sensor_turbidez(turbidez)
+    # Cruzamento dos dois sensores: o sensor de turbidez ve agua limpa, mas o sensor
+    # de cor ve a luz caindo POR IGUAL em todas as cores. Cor dissolvida (cha, esgoto)
+    # nao cai por igual (absorve mais o violeta); queda plana com particulas ausentes
+    # e a lanterna/luz que mudou desde a gravacao da agua limpa.
+    validas_pct = [p for p in porcentagens if p is not None]
+    plano = len(validas_pct) == 8 and max(validas_pct) - min(validas_pct) <= ESPECTRO_PLANO_PCT
+    turbidez_limpa = sensor["estado_leitura"] != "invalida" and sensor["ntu_experimental"] is not None \
+        and sensor["ntu_experimental"] <= TURBIDEZ_LIMPA_NTU and sensor["ntu_limite"] != ">="
+    luz_mudou = bool(turbidez_limpa and plano and luz_bloqueada is not None and luz_bloqueada >= LUZ_MUDOU_PCT)
+    luz_mudou_forte = luz_mudou and luz_bloqueada >= LUZ_MUDOU_FORTE_PCT
     contaminacao = diagnostico.get("contaminacao_pct")
     if contaminacao is None and metricas.get("contaminacao") is not None:
         contaminacao = metricas["contaminacao"] * 100
@@ -183,7 +202,8 @@ def _indices(leitura, metricas, branco=None):
         "contaminacao": contaminacao,
         "turbidez": luz_bloqueada,
         "ntu": _ntu_valido(turbidez),
-        "sensor": _sensor_turbidez(turbidez),
+        "sensor": sensor,
+        "luz_mudou": luz_mudou,
         "absorbancia": absorb,
         "algas": _diferenca(absorb[7], absorb[5]),  # 680 - 590 nm: clorofila
         "cor": _diferenca(absorb[0], absorb[4]),  # 415 - 555 nm: materia organica
@@ -196,6 +216,7 @@ def _indices(leitura, metricas, branco=None):
         "pouca_luz": pouca_luz,
         "suspeita": bool(leitura.saturado)
         or pouca_luz
+        or luz_mudou_forte
         or any(p is not None and p > SUSPEITA_PCT for p in porcentagens),
         "qualidade": qualidade.indices(
             porcentagens, _ntu_valido(turbidez), qualidade.absorbancia_nir(leitura, branco)
@@ -223,6 +244,8 @@ def _desvio(valores):
 def _estado(leitura, indices):
     if leitura.saturado:
         return "Saturada"
+    if indices.get("luz_mudou") and indices["suspeita"]:
+        return "Luz mudou"
     if indices["pouca_luz"]:
         return "Pouca luz"
     return "Suspeita" if indices["suspeita"] else "Normal"
@@ -305,9 +328,17 @@ def _componentes(indices):
     return saida
 
 
+MSG_LUZ_MUDOU = ("Os dois sensores discordam: o sensor de turbidez vê água limpa, mas o sensor de cor vê "
+                 "{luz:.0f}% da luz bloqueada por igual em todas as cores. Isso indica que a lanterna ou a luz "
+                 "mudou desde que a água limpa foi gravada. Confira a lanterna e regrave a água limpa (BOOT → 1) "
+                 "e depois a água suja (BOOT → 2).")
+
+
 def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
     """Frases tiradas dos dados (regras simples, sem chute)."""
     obs = []
+    if atual_indices and atual_indices.get("luz_mudou"):
+        obs.append(MSG_LUZ_MUDOU.format(luz=atual_indices["turbidez"]))
     if minutos_sem_enviar is not None and minutos_sem_enviar > OFFLINE_MIN:
         obs.append(f"O aparelho está sem enviar há {minutos_sem_enviar} minutos: confira energia e Wi-Fi.")
     if atual_indices:
@@ -333,7 +364,8 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
                        f"(de {antigo['contaminacao']:.0f}% para {recente['contaminacao']:.0f}%).")
         else:
             obs.append(f"A contaminação está estável em torno de {recente['contaminacao']:.0f}% desde as {antigo['hora']}.")
-    if atual_indices:
+    # Com a luz mudada, os indicadores do sensor de cor sao efeito da luz: nao viram frase.
+    if atual_indices and not atual_indices.get("luz_mudou"):
         for comp in _componentes(atual_indices):
             if comp["nivel"] in ("Moderado", "Alto") and comp["id"] != "turbidez":
                 obs.append(f"{comp['nome']}: nível {comp['nivel'].lower()}, pela {comp['como']}.")
@@ -342,7 +374,7 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
             obs.append(f"Turbidez: {turb:.0f}% da luz bloqueada pelas partículas "
                        f"(nível {_nivel(turb, FAIXAS['particulas']).lower()}).")
     if suspeitas:
-        obs.append(f"{suspeitas} leituras suspeitas hoje (pouca luz no sensor, sensor estourado ou luz de fora) ficaram fora dos gráficos.")
+        obs.append(f"{suspeitas} leituras suspeitas hoje (pouca luz no sensor, sensor estourado, luz de fora ou lanterna que mudou) ficaram fora dos gráficos.")
     return obs
 
 
@@ -378,7 +410,10 @@ def _qualidade_atual(atual, atual_indices, suja_q, observacoes):
                  + (f"O espectro se parece mais com a {parecida}. " if parecida else "")
                  + f"Fator que mais pesa: {qualidade.NOMES_INDICES[pior].lower()}.")
     elevados = [c for c in _componentes(atual_indices) if c["nivel"] in ("Moderado", "Alto")]
-    if elevados:
+    if atual_indices.get("luz_mudou"):
+        alerta = MSG_LUZ_MUDOU.format(luz=atual_indices["turbidez"])
+        conclusao = "Atenção: os dois sensores discordam, então este índice pode estar errado. " + conclusao
+    elif elevados:
         c = max(elevados, key=lambda c: (c["nivel"] == "Alto", c["intensidade"] or 0))
         alerta = f"{c['nome']} em nível {c['nivel'].lower()} ({c['como']})."
     else:

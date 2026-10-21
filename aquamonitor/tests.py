@@ -294,6 +294,39 @@ class DashboardDataTests(TestCase):
         self.assertIsNone(sensor["ntu"])  # continua sem NTU validado
         self.assertEqual(sensor["faixa_curva_ntu"], [0, 3000])
 
+    def _leitura_cores(self, pct, turbidez, minutos=0):
+        collection, _ = Coleta.objects.get_or_create(data_coleta=timezone.localdate())
+        return Leitura.objects.create(
+            collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.now() - timedelta(minutes=minutos), ganho=64, atime=0, astep=0, n=1, saturado=False,
+            media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+            turbidez=turbidez, cores=[{"porcentagem": p} for p in pct], diagnostico={},
+        )
+
+    def test_sensors_disagreeing_flags_a_light_change(self):
+        limpa = {"status": "fora_da_faixa_da_curva", "tensao_v": 4.22, "ntu": None, "ntu_experimental": None,
+                 "calibracao_status": "pendente"}
+        self._leitura_cores([67, 69, 69, 68, 68, 69, 67, 67], limpa)  # queda plana de ~32%
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertIn("lanterna", d["qualidade"]["alerta"])
+        self.assertIn("discordam", d["observacoes"][0])
+        self.assertFalse(any(o.startswith(("Turbidez:", "Sedimentos:")) for o in d["observacoes"]))
+
+    def test_strong_light_change_is_kept_out_of_the_charts(self):
+        limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
+        self._leitura_cores([2, 2, 2, 2, 2, 2, 2, 2], limpa)  # 98% por igual com turbidez "limpa"
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertEqual(d["suspeitas"], 1)
+        self.assertEqual(d["leituras"][0]["estado"], "Luz mudou")
+        self.assertEqual(d["serie"], [])
+
+    def test_dissolved_color_is_not_mistaken_for_a_light_change(self):
+        limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
+        self._leitura_cores([10, 25, 35, 45, 55, 62, 70, 75], limpa)  # cha: muito mais queda no violeta
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertEqual(d["suspeitas"], 0)
+        self.assertNotIn("lanterna", d["qualidade"]["alerta"])
+
     def test_old_firmware_records_stay_readable_as_experimental(self):
         self._leitura_turbidez({"ntu": 868.0, "tensao_v": 3.94, "classificacao": "MUITO TURVA"})
         d = self.client.get(reverse("dashboard_data")).json()
