@@ -820,9 +820,49 @@
     filteredRows.slice(start, start + READINGS_PER_PAGE).forEach((r) => { r.hidden = false; });
     if ($("visible-count")) $("visible-count").textContent = String(filteredRows.length);
     if ($("no-results")) $("no-results").hidden = filteredRows.length !== 0 || rows.length === 0;
-    if ($("readings-page")) $("readings-page").textContent = `Página ${currentReadingsPage} de ${totalPages}`;
-    if ($("readings-prev")) $("readings-prev").disabled = currentReadingsPage <= 1;
-    if ($("readings-next")) $("readings-next").disabled = currentReadingsPage >= totalPages;
+    renderReadingsPagination(totalPages);
+  }
+  function renderReadingsPagination(totalPages) {
+    const nav = document.querySelector(".table-pagination");
+    const pages = $("readings-pages");
+    if (!nav || !pages) return;
+    nav.querySelector('[data-page-action="first"]').disabled = currentReadingsPage <= 1;
+    nav.querySelector('[data-page-action="prev"]').disabled = currentReadingsPage <= 1;
+    nav.querySelector('[data-page-action="next"]').disabled = currentReadingsPage >= totalPages;
+    nav.querySelector('[data-page-action="last"]').disabled = currentReadingsPage >= totalPages;
+
+    const windowSize = 3;
+    let start = Math.max(2, currentReadingsPage - Math.floor(windowSize / 2));
+    let end = Math.min(totalPages - 1, start + windowSize - 1);
+    start = Math.max(2, end - windowSize + 1);
+    const fragment = document.createDocumentFragment();
+    const addPage = (page) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "pagination-button page-number";
+      button.textContent = String(page);
+      button.dataset.page = String(page);
+      button.setAttribute("aria-label", `Página ${page}`);
+      if (page === currentReadingsPage) {
+        button.classList.add("is-current");
+        button.setAttribute("aria-current", "page");
+      }
+      fragment.append(button);
+    };
+    const addEllipsis = () => {
+      const ellipsis = document.createElement("span");
+      ellipsis.className = "pagination-ellipsis";
+      ellipsis.setAttribute("aria-label", "Páginas omitidas");
+      ellipsis.textContent = "…";
+      fragment.append(ellipsis);
+    };
+
+    addPage(1);
+    if (start > 2) addEllipsis();
+    for (let page = start; page <= end; page++) addPage(page);
+    if (end < totalPages - 1) addEllipsis();
+    if (totalPages > 1) addPage(totalPages);
+    pages.replaceChildren(fragment);
   }
   function updateSampleFilter(list) {
     const sel = $("sample-filter"); if (!sel) return;
@@ -888,12 +928,16 @@
   $("reading-search")?.addEventListener("input", () => filterReadings(true));
   $("sample-filter")?.addEventListener("change", () => filterReadings(true));
   $("type-filter")?.addEventListener("change", () => filterReadings(true));
-  $("readings-prev")?.addEventListener("click", () => {
-    if (currentReadingsPage > 1) { currentReadingsPage--; filterReadings(); }
-  });
-  $("readings-next")?.addEventListener("click", () => {
+  document.querySelector(".table-pagination")?.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || button.disabled) return;
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / READINGS_PER_PAGE));
-    if (currentReadingsPage < totalPages) { currentReadingsPage++; filterReadings(); }
+    if (button.dataset.page) currentReadingsPage = Number(button.dataset.page);
+    else if (button.dataset.pageAction === "first") currentReadingsPage = 1;
+    else if (button.dataset.pageAction === "prev") currentReadingsPage--;
+    else if (button.dataset.pageAction === "next") currentReadingsPage++;
+    else if (button.dataset.pageAction === "last") currentReadingsPage = totalPages;
+    filterReadings();
   });
   function exportReadings(format) {
     if (!filteredRows.length) return;

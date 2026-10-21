@@ -41,9 +41,11 @@
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>
       <nav class="table-pagination" aria-label="Paginação dos registros">
-        <button class="pagination-button" id="readings-prev" type="button" aria-label="Página anterior" disabled>Anterior</button>
-        <span id="readings-page" aria-live="polite">Página 1 de 1</span>
-        <button class="pagination-button" id="readings-next" type="button" aria-label="Próxima página" disabled>Próxima</button>
+        <button class="pagination-button" type="button" data-page-action="first" aria-label="Primeira página" disabled>«</button>
+        <button class="pagination-button" type="button" data-page-action="prev" aria-label="Página anterior" disabled>Anterior</button>
+        <span class="pagination-pages" id="readings-pages" aria-label="Páginas"></span>
+        <button class="pagination-button" type="button" data-page-action="next" aria-label="Próxima página" disabled>Próxima</button>
+        <button class="pagination-button" type="button" data-page-action="last" aria-label="Última página" disabled>»</button>
       </nav>
     </section>
 {% endblock %}
