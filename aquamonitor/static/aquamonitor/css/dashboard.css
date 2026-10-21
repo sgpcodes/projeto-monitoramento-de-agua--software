@@ -88,14 +88,27 @@ button,input,select{font:inherit;color:inherit}
 .scroll-hint::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px)}
 [data-theme="dark"] .scroll-hint{background:rgba(20,42,50,.82);border-color:rgba(130,195,207,.25)}
 @keyframes bob{50%{transform:translateY(6px)}}
-.hero-visual{position:relative;height:min(52vh,460px)}
-.ring{position:absolute;top:50%;left:50%;border:1.5px solid rgba(10,124,153,.3);border-radius:50%;transform:translate(-50%,-50%);animation:ripple 7s ease-out infinite}
-.ring-a{width:50%;aspect-ratio:1}.ring-b{width:75%;aspect-ratio:1;animation-delay:-2.3s}.ring-c{width:100%;aspect-ratio:1;animation-delay:-4.6s}
-@keyframes ripple{0%{opacity:.9;transform:translate(-50%,-50%) scale(.55)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
-.drop{position:absolute;top:50%;left:50%;width:34%;transform:translate(-50%,-50%);filter:drop-shadow(0 24px 30px rgba(10,124,153,.3));animation:float 6s ease-in-out infinite;transition:filter .35s var(--ease)}
+.hero-visual{position:relative;height:min(52vh,460px);isolation:isolate}
+.hero-visual::before{content:"";position:absolute;top:43%;left:50%;width:72%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(111,231,239,.32),rgba(75,199,219,.12) 38%,transparent 72%);filter:blur(8px);animation:halo-breathe 8s ease-in-out infinite}
+.water-stage{position:absolute;top:68%;left:50%;width:88%;height:31%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(30,171,195,.38),rgba(57,184,209,.22) 38%,transparent 72%);filter:drop-shadow(0 14px 26px rgba(10,124,153,.22));transition:filter .8s ease,opacity .8s ease}
+.water-stage::before{content:"";position:absolute;inset:21% 9%;border-radius:50%;background:radial-gradient(ellipse,rgba(236,255,255,.72),rgba(54,192,211,.3) 38%,transparent 72%);filter:blur(7px);animation:surface-glow 7s ease-in-out infinite alternate}
+.water-stage::after{content:"";position:absolute;left:24%;right:24%;top:47%;height:2px;border-radius:50%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.96),rgba(75,207,219,.9),transparent);filter:blur(.3px);animation:caustic-shift 8s ease-in-out infinite alternate}
+.water-ripple{position:absolute;left:50%;top:42%;width:74%;height:37%;border:1.5px solid rgba(42,165,188,.48);border-bottom-color:rgba(37,143,169,.38);border-radius:50%;transform:translate(-50%,-50%) scaleX(.75);box-shadow:0 0 16px rgba(38,167,191,.2),inset 0 0 12px rgba(255,255,255,.24);animation:water-ripple 7s ease-in-out infinite}
+.water-ripple-b{width:96%;height:49%;opacity:.52;animation-delay:-3.5s;animation-duration:9s}
+.water-caustic{position:absolute;left:39%;top:23%;width:22%;height:7%;border-radius:50%;background:rgba(232,255,255,.8);filter:blur(5px);animation:caustic-shift 6s ease-in-out infinite alternate-reverse}
+[data-theme="dark"] .water-stage{background:radial-gradient(ellipse,rgba(46,194,211,.22),rgba(57,184,209,.1) 38%,transparent 72%);filter:drop-shadow(0 12px 22px rgba(10,124,153,.12))}
+[data-theme="dark"] .water-stage::before{background:radial-gradient(ellipse,rgba(215,253,255,.5),rgba(79,209,222,.16) 38%,transparent 72%)}
+[data-theme="dark"] .water-stage::after{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),rgba(157,245,248,.8),transparent)}
+[data-theme="dark"] .water-ripple{border-color:rgba(195,249,251,.58);border-bottom-color:rgba(37,173,197,.3);box-shadow:0 0 12px rgba(123,235,239,.12),inset 0 0 10px rgba(255,255,255,.12)}
+.hero-visual:hover .water-stage{filter:drop-shadow(0 14px 28px rgba(10,124,153,.2))}
+.drop{position:absolute;z-index:1;top:45%;left:50%;width:34%;transform:translate(-50%,-50%);filter:drop-shadow(0 24px 30px rgba(10,124,153,.3));animation:float 6s ease-in-out infinite;transition:filter .35s var(--ease)}
 .drop:hover{filter:drop-shadow(0 28px 36px rgba(10,124,153,.44))}
 .drop-body{transform-box:fill-box;transform-origin:center;transform:perspective(180px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:transform .22s var(--ease)}
 @keyframes float{50%{transform:translate(-50%,-56%)}}
+@keyframes halo-breathe{50%{opacity:.62;transform:translate(-50%,-50%) scale(1.08)}}
+@keyframes surface-glow{to{transform:scaleX(.88) translateY(5px);opacity:.64}}
+@keyframes water-ripple{0%,100%{opacity:.38;transform:translate(-50%,-50%) scaleX(.72) scaleY(.88)}50%{opacity:.78;transform:translate(-50%,-50%) scaleX(1) scaleY(1.08)}}
+@keyframes caustic-shift{to{transform:translateX(16px) scaleX(.72);opacity:.42}}
 .waves{position:absolute;left:0;bottom:0;z-index:0;width:100%;height:160px;pointer-events:none}
 .waves .w1,.waves .w2{animation:sway 14s ease-in-out infinite alternate;transition:opacity 1.2s ease}
 .w1{fill:url(#seaDepth);opacity:.78}
