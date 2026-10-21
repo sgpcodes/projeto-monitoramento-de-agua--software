@@ -358,23 +358,14 @@
     const q = data?.qualidade, tb = data?.turbidez || {};
     setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
     if (!q?.valida) {
-      setText("ag-ntu", "—"); setText("ag-iq", "—"); renderGaugeAmostra(null, "ag-gauge");
-      badge($("ag-classe"), "sem leitura válida", false); badge($("ag-status"), "sem leitura válida", false);
-      setText("ag-conclusao", q?.alerta || "Ainda não há leitura válida da lagoa hoje.");
-      const sem = $("ag-sem"); if (sem) sem.replaceChildren();
+      cartoesQualidade("ag", { valida: false, alerta: q?.alerta || "Ainda não há leitura válida da lagoa hoje." });
+      setText("ag-conclusao", "Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.");
       return;
     }
-    const ntu = q.ntu;
-    setText("ag-ntu", ntu != null ? `${fx(ntu, 1)} NTU` : tb.luz_bloqueada_pct != null ? `${fx(tb.luz_bloqueada_pct, 0)}% luz bloqueada` : "—");
-    renderGaugeAmostra(ntu, "ag-gauge");
-    const classe = ntu == null ? "Sem leitura de NTU (estimado pelo sensor de cor)" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Fora dos limites CONAMA";
-    badge($("ag-classe"), classe, ntu != null && ntu <= 40);
-    setText("ag-iq", `${q.indice_geral} de 100`);
-    const sem = $("ag-sem");
-    if (sem) { sem.replaceChildren(); [["alerta", VERMELHO], ["atenção", AMBAR], ["bom", VERDE]].forEach(([n, c], i) => addSVG(sem, "circle", { cx: 12 + i * 30, cy: 10, r: 8, fill: c, opacity: q.status === n ? 1 : 0.2 })); }
-    badge($("ag-status"), q.status, q.status === "bom");
+    cartoesQualidade("ag", { ntu: q.ntu, luz: tb.luz_bloqueada_pct, iq: q.indice_geral, status: q.status, cor: q.cor, alerta: q.alerta });
     setText("ag-conclusao", q.conclusao || "");
   }
+
 
   /* ---------- amostras (como no design: media de 3 repeticoes por amostra) ---------- */
   const VERDE = "#1f9d74", AMBAR = "#d19a2b", VERMELHO = "#d2504a";
@@ -434,24 +425,37 @@
     addSVG(svg, "circle", { cx, cy, r: 6, fill: "#23414d" });
   }
 
+  const COR_STATUS = { bom: VERDE, "atenção": AMBAR, alerta: VERMELHO };
+  // Os 4 cartoes do design (turbidez, indice geral, cor, alerta) com prefixo am- ou ag-.
+  function cartoesQualidade(p, d) {
+    const ntu = d?.ntu;
+    setText(`${p}-ntu`, ntu != null ? fx(ntu, 1) : d?.luz != null ? `${fx(d.luz, 0)}%` : "—");
+    setText(`${p}-ntu-un`, ntu != null ? "NTU" : d?.luz != null ? "luz bloqueada" : "");
+    renderGaugeAmostra(ntu, `${p}-gauge`);
+    const classe = d?.valida === false ? "sem leitura válida" : ntu == null ? "Sem leitura de NTU (sensor de cor)" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Fora dos limites CONAMA";
+    badge($(`${p}-classe`), classe, ntu != null && ntu <= 40);
+    const iq = $(`${p}-iq`);
+    if (iq) { iq.textContent = d?.iq == null ? "—" : String(d.iq); iq.style.color = COR_STATUS[d?.status] || ""; }
+    const sem = $(`${p}-sem`);
+    if (sem) { sem.replaceChildren(); [["alerta", VERMELHO], ["atenção", AMBAR], ["bom", VERDE]].forEach(([n, c], i) => addSVG(sem, "circle", { cx: 12 + i * 30, cy: 10, r: 8, fill: c, opacity: d?.status === n ? 1 : 0.18 })); }
+    badge($(`${p}-status`), d?.status || "sem leitura válida", d?.status === "bom");
+    const sw = $(`${p}-swatch`);
+    if (sw) { sw.replaceChildren(); addSVG(sw, "rect", { x: 1, y: 1, width: 86, height: 86, rx: 16, fill: d?.cor?.hex || "#e6eef1", stroke: "#c9d3dc" }); }
+    setText(`${p}-cor`, d?.cor?.nome || "—");
+    setText(`${p}-cor-hex`, d?.cor ? `Cor medida ${d.cor.hex}` : "—");
+    setText(`${p}-cor-lambda`, d?.cor?.lambda_dom_nm ? `λ dominante ${d.cor.lambda_dom_nm} nm` : "");
+    setText(`${p}-alerta`, d?.alerta || "—");
+    const card = $(`${p}-card-alerta`); if (card) card.style.borderLeftColor = COR_STATUS[d?.status] || "var(--line)";
+  }
+
   function renderAmostra() {
     const a = amostraSel(); if (!a) return;
     setText("am-nome", a.nome);
     setText("am-leitura", a.padrao ? `padrão gravado em ${a.leitura}` : `${a.leitura} · ${a.repeticoes} repetiç${a.repeticoes === 1 ? "ão" : "ões"}`);
     setText("am-conclusao", a.conclusao || "");
-    setText("am-ntu", a.turbidez_ntu != null ? `${fx(a.turbidez_ntu, 1)} NTU` : a.luz_bloqueada_pct != null ? `${fx(a.luz_bloqueada_pct, 0)}% luz bloqueada` : "—");
-    renderGaugeAmostra(a.turbidez_ntu);
-    badge($("am-classe"), a.classe_turbidez, a.turbidez_ntu != null && a.turbidez_ntu <= 40);
-    setText("am-iq", a.indice_geral == null ? "—" : `${a.indice_geral} de 100`);
-    const sem = $("am-sem");
-    if (sem) { sem.replaceChildren(); [["alerta", VERMELHO], ["atenção", AMBAR], ["bom", VERDE]].forEach(([n, c], i) => addSVG(sem, "circle", { cx: 12 + i * 30, cy: 10, r: 8, fill: c, opacity: a.status === n ? 1 : 0.2 })); }
-    badge($("am-status"), a.status || "—", a.status === "bom");
-    const sw = $("am-swatch");
-    if (sw) { sw.replaceChildren(); addSVG(sw, "rect", { x: 1, y: 1, width: 70, height: 70, rx: 14, fill: a.cor?.hex || "#eee", stroke: "#c9d3dc" }); }
-    setText("am-cor", a.cor?.nome || "—");
-    setText("am-cor-info", a.cor ? `Cor medida ${a.cor.hex} · λ dominante ${a.cor.lambda_dom_nm ?? "—"} nm` : "—");
-    setText("am-alerta", a.alerta || "—");
+    cartoesQualidade("am", { ntu: a.turbidez_ntu, luz: a.luz_bloqueada_pct, iq: a.indice_geral, status: a.status, cor: a.cor, alerta: a.alerta });
   }
+
 
   function renderAssinatura() {
     const chart = $("assin-chart"), lista = amostrasDados?.amostras || [];
