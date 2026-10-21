@@ -1,6 +1,6 @@
 {% extends "aquamonitor/base.html" %}
 {% load static %}
-{% block titulo %}Agora{% endblock %}
+{% block titulo %}Tempo real{% endblock %}
 {% block hero %}
   <section class="hero" aria-label="Apresentação do projeto">
     <div class="hero-stick">
@@ -96,7 +96,7 @@
 
     <section class="sample-analysis" id="agora-qualidade" aria-label="Qualidade da lagoa agora" data-reveal>
       <div class="sample-head">
-        <div><p class="panel-kicker">Lagoa agora · última leitura válida</p><h2>Como está a água neste momento</h2></div>
+        <div><p class="panel-kicker">Tempo real · amostra atual (medida a cada minuto)</p><h2>Como está a água neste momento</h2></div>
         <span class="sample-time">Medida às <strong id="ag-hora">—</strong></span>
       </div>
       <p class="sample-summary" id="ag-conclusao">Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.</p>
@@ -106,6 +106,11 @@
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Cor da amostra</span><div style="display:flex;gap:16px;align-items:center"><svg id="ag-swatch" viewBox="0 0 88 88" aria-hidden="true" style="width:88px;flex:none"></svg><div style="display:grid;gap:4px"><strong id="ag-cor" style="font-size:24px">—</strong><small id="ag-cor-hex">—</small><small id="ag-cor-lambda">—</small></div></div></article>
         <article class="sample-metric" id="ag-card-alerta" style="align-content:start;gap:10px;border-left:6px solid var(--line)"><span style="text-transform:uppercase;letter-spacing:.07em">Alerta principal</span><p id="ag-alerta" style="margin:0;font-size:18px;line-height:1.5;color:var(--ink)">—</p></article>
       </div>
+    </section>
+
+    <section class="panel" id="ag-indicadores" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Tempo real · amostra atual</p><h2>O que esta amostra indica</h2><p>Para que serve: dizer, em palavras, o que tem na água da lagoa agora e em que quantidade. Barra verde = pouco; amarela = moderado; vermelha = muito. <small>Fotos: Wikimedia Commons (Algal bloom at Anderson Lake State Park, CC BY-SA 4.0; Lake Burley Griffin cyanobacteria, CC BY-SA 3.0; Some Tea With Your River, Sir?, CC BY 2.0; Muddy water, Belfast, CC BY-SA 2.0).</small></p></div></div>
+      <div class="sample-metrics" id="ag-indicadores-body" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
     </section>
 
     <section class="sync" id="sync-notice" aria-live="polite" data-reveal>

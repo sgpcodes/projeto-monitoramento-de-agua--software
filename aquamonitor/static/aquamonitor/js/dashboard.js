@@ -359,10 +359,15 @@
     setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
     if (!q?.valida) {
       cartoesQualidade("ag", { valida: false, alerta: q?.alerta || "Ainda não há leitura válida da lagoa hoje." });
+      renderIndicadoresAmostra("ag-indicadores-body", { niveis: {} });
       setText("ag-conclusao", "Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.");
       return;
     }
     cartoesQualidade("ag", { ntu: q.ntu, luz: tb.luz_bloqueada_pct, iq: q.indice_geral, status: q.status, cor: q.cor, alerta: q.alerta });
+    // Indicadores com foto da leitura atual (mesmos cartoes da pagina Amostras).
+    const atual = { niveis: {} };
+    (data.componentes || []).forEach((c) => { atual[c.id] = c.valor; atual.niveis[c.id] = c.nivel ? c.nivel.toLowerCase() : null; });
+    renderIndicadoresAmostra("ag-indicadores-body", atual);
     setText("ag-conclusao", q.conclusao || "");
   }
 
@@ -405,7 +410,8 @@
     const sel = $("am-select"); if (!sel || !amostrasDados) return;
     const atual = sel.value || selecionada;
     sel.replaceChildren(...amostrasDados.amostras.map((a) => new Option(a.nome, a.id)));
-    selecionada = amostrasDados.amostras.some((a) => a.id === atual) ? atual : amostrasDados.padrao;
+    const referencia = ["agua_limpa", "agua_podre"].find((id) => amostrasDados.amostras.some((a) => a.id === id));
+    selecionada = amostrasDados.amostras.some((a) => a.id === atual) ? atual : referencia || amostrasDados.padrao;
     sel.value = selecionada || "";
   }
 
@@ -509,8 +515,8 @@
   }
 
   const FOTOS = { clorofila: "alg", cianobacterias: "cya", materia_organica: "org", sedimentos: "sed" };
-  function renderIndicadoresAmostra() {
-    const box = $("indicadores-body"), a = amostraSel(); if (!box) return;
+  function renderIndicadoresAmostra(boxId = "indicadores-body", a = amostraSel()) {
+    const box = $(boxId); if (!box) return;
     box.replaceChildren();
     if (!a) return;
     const pasta = shell?.dataset.imgUrl || "/static/aquamonitor/img/";

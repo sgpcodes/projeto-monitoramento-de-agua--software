@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#eefbfd">
 <meta name="description" content="AquaMonitor: qualidade da água medida com luz. ESP32 + AS7341. Universidade de Vassouras, Engenharia de Software, Maricá.">
-<title>AquaMonitor · {% block titulo %}Agora{% endblock %}</title>
+<title>AquaMonitor · {% block titulo %}Tempo real{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
   </a>
   {% with pagina=request.resolver_match.url_name %}
   <nav class="nav-links" aria-label="Páginas">
-    <a class="nav-link{% if pagina == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}">Agora</a>
+    <a class="nav-link{% if pagina == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}">Tempo real</a>
     <a class="nav-link{% if pagina == 'pagina_amostras' %} is-active{% endif %}" href="{% url 'pagina_amostras' %}">Amostras</a>
     <a class="nav-link{% if pagina == 'pagina_historico' %} is-active{% endif %}" href="{% url 'pagina_historico' %}">Histórico</a>
     <a class="nav-link{% if pagina == 'pagina_guia' %} is-active{% endif %}" href="{% url 'pagina_guia' %}">Guia</a>
