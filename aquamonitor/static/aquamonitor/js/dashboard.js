@@ -168,11 +168,19 @@
     const ok = Array.isArray(values) && values.length > 0 && values.every(Number.isFinite);
     setChartState("live-wrap", "live-empty", ok);
     if ($("canais-description")) $("canais-description").textContent = modoCanais === "dia"
-      ? `Para que serve: ver se a luz ficou estável hoje (média de ${cn?.medicoes_dia ?? 0} leituras). Barrinha preta grande = a luz variou muito durante o dia.`
-      : "Para que serve: conferir se o aparelho está medindo bem. Barras muito baixas = pouca luz (lanterna fraca ou torta). Barrinha preta grande = leitura instável.";
+      ? `Para que serve: ver se a luz ficou estável durante o dia (média de ${cn?.medicoes_dia ?? 0} leituras). Não mostra a qualidade da água, mostra se o aparelho mediu direito.`
+      : "Para que serve: verificar se a lanterna e o sensor estão funcionando, antes de confiar nas análises. Este gráfico não mostra a qualidade da água, mostra se o aparelho está medindo direito.";
+    // Veredito em uma frase: quem bate o olho ja sabe se esta tudo certo.
+    const LUZ_MINIMA = 1000;
+    if ($("canais-status") && ok) {
+      const fracas = values.slice(0, 8).map((v, i) => [v, NOMES_CORES[i]]).filter(([v]) => v < LUZ_MINIMA);
+      $("canais-status").textContent = fracas.length === 0 ? "✓ Luz suficiente em todas as cores: o aparelho está medindo bem."
+        : fracas.length >= 6 ? "⚠ Pouca luz em quase todas as cores: confira se a lanterna está acesa, alinhada e com a caixa fechada."
+        : `⚠ Pouca luz em ${fracas.map(([, n]) => n.toLowerCase()).join(", ")}: essas cores podem dar resultado impreciso.`;
+    }
     if (!chart || !ok) return;
-    const W = chart.clientWidth || 900, H = chart.clientHeight || 270, m = { t: 20, r: 20, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
-    const maxV = Math.max(...values.map((v, i) => v + (erros?.[i] || 0)), 1) * 1.12, gap = 10, bw = (pw - gap * (values.length - 1)) / values.length;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 270, m = { t: 40, r: 20, b: 52, l: 70 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const maxV = Math.max(1200, ...values.map((v, i) => v + (erros?.[i] || 0))) * 1.12, gap = 10, bw = (pw - gap * (values.length - 1)) / values.length;
     const y = (v) => m.t + ph - (v / maxV) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
@@ -191,8 +199,12 @@
         addSVG(chart, "line", { x1: cx, y1: y(v + e), x2: cx, y2: y(Math.max(0, v - e)), stroke: "#23414d", "stroke-width": 1.6 });
         addSVG(chart, "line", { x1: cx - 6, y1: y(v + e), x2: cx + 6, y2: y(v + e), stroke: "#23414d", "stroke-width": 1.6 });
       }
-      svgText(chart, bx + bw / 2, H - 20, labels[i], { class: "axis-text", "text-anchor": "middle" });
+      svgText(chart, bx + bw / 2, H - 30, nir ? "Infraverm." : NOMES_CORES[i].replace("Verde-amarelo", "Verde-am."), { class: "axis-text", "text-anchor": "middle" });
+      svgText(chart, bx + bw / 2, H - 12, nir ? "~910 nm" : `${labels[i]} nm`, { class: "axis-text", "text-anchor": "middle" });
     });
+    // Linha da luz minima para medir bem.
+    addSVG(chart, "line", { x1: m.l, y1: y(1000), x2: W - m.r, y2: y(1000), stroke: "#d2504a", "stroke-width": 1.6, "stroke-dasharray": "6 5" });
+    svgText(chart, 4, 16, "luz captada", { class: "axis-label" });
     markDrawn("l");
   }
 
