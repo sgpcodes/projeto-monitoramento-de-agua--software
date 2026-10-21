@@ -8,7 +8,7 @@
     </section>
 
     <section class="panel" id="historico" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Histórico dos pontos da lagoa</h2><p>Últimos 30 dias de leituras diárias. Linhas tracejadas: limites de turbidez da CONAMA 357/2005 para águas doces.</p></div>
+      <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Histórico dos pontos da lagoa</h2><p>Para que serve: saber se a lagoa está melhorando ou piorando nos últimos 30 dias, ponto por ponto. As linhas tracejadas são os limites da lei (CONAMA) para água doce.</p></div>
         <div class="spectrum-legend" id="hist-legenda"></div></div>
       <div class="two-col" style="margin:0">
         <div><p class="panel-kicker" id="hist-t-titulo" style="margin:0 28px">Turbidez (NTU)</p>
@@ -21,12 +21,12 @@
     </section>
 
     <section class="panel" id="coletas" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Transparência (Secchi), chuva, temperatura, observação e foto.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
+      <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Para que serve: guardar o que foi observado em cada ida à lagoa (transparência, chuva, temperatura, fotos), para explicar mudanças nos gráficos.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
       <div class="table-scroll"><table class="readings-table"><thead><tr><th>Data</th><th>Ponto</th><th>Secchi</th><th>Chuva 48h</th><th>Temp.</th><th>Observação</th><th>Foto</th></tr></thead><tbody id="coletas-body"></tbody></table></div>
     </section>
 
     <section class="panel" id="readings" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Registros recebidos</h2><p>Leituras enviadas pelo ESP32 no dia escolhido (as 60 mais recentes).</p></div><span class="record-count"><strong id="visible-count">0</strong> registros</span></div>
+      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Registros recebidos</h2><p>Para que serve: conferir cada medição que o aparelho enviou no dia escolhido e baixar os dados (Exportar CSV).</p></div><span class="record-count"><strong id="visible-count">0</strong> registros</span></div>
       <div class="table-toolbar">
         <label class="select-label" for="registros-data">Dia<input id="registros-data" type="date" value="{{ data_selecionada|date:'Y-m-d' }}"></label>
         <label class="search-box" for="reading-search"><input id="reading-search" type="search" placeholder="Buscar amostra…" autocomplete="off"></label>

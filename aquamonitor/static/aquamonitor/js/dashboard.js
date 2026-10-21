@@ -107,7 +107,7 @@
     let sp = data?.espectro;
     if (sp && modoEspectro === "contagem" && Array.isArray(sp.contagens)) {
       sp = { ...sp, unidade: "Contagem digital", semanas: [{ ...sp.semanas[0], valores: sp.contagens }] };
-      if ($("spectrum-description")) $("spectrum-description").textContent = "Contagem crua de cada canal (sem comparar com a água limpa): mostra principalmente a cor da lanterna. Use para conferir a iluminação; para analisar a água, use % de luz.";
+      if ($("spectrum-description")) $("spectrum-description").textContent = "Para que serve: conferir a lanterna. Mostra a luz que chega em cada cor sem comparar com a água limpa; para analisar a água, volte para % de luz.";
     } else if ($("spectrum-description") && descricaoEspectro) {
       $("spectrum-description").textContent = descricaoEspectro;
     }
@@ -168,8 +168,8 @@
     const ok = Array.isArray(values) && values.length > 0 && values.every(Number.isFinite);
     setChartState("live-wrap", "live-empty", ok);
     if ($("canais-description")) $("canais-description").textContent = modoCanais === "dia"
-      ? `Média de cada canal nas ${cn?.medicoes_dia ?? 0} leituras válidas da lagoa hoje; a barrinha mostra o quanto variou ao longo do dia.`
-      : "Contagem crua de cada canal na última leitura; a barrinha é o desvio padrão das 20 leituras. Serve para conferir a lanterna e o sensor.";
+      ? `Para que serve: ver se a luz ficou estável hoje (média de ${cn?.medicoes_dia ?? 0} leituras). Barrinha preta grande = a luz variou muito durante o dia.`
+      : "Para que serve: conferir se o aparelho está medindo bem. Barras muito baixas = pouca luz (lanterna fraca ou torta). Barrinha preta grande = leitura instável.";
     if (!chart || !ok) return;
     const W = chart.clientWidth || 900, H = chart.clientHeight || 270, m = { t: 20, r: 20, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const maxV = Math.max(...values.map((v, i) => v + (erros?.[i] || 0)), 1) * 1.12, gap = 10, bw = (pw - gap * (values.length - 1)) / values.length;
@@ -245,13 +245,13 @@
   // Faixas iguais as do ESP32: a linha tracejada marca onde a palavra muda.
   const INDICES = {
     contaminacao: { nome: "Contaminação", unidade: "%", casas: 0, teto: 100, faixas: [[10, "levemente contaminada"], [30, "contaminada"], [60, "muito contaminada"]],
-      texto: "Onde a lagoa está entre a água limpa (0%) e a água suja de referência (100%)." },
+      texto: "Para que serve: ver se a lagoa piorou ou melhorou durante o dia. 0% = igual à água limpa; 100% = igual à água podre." },
     turbidez: { nome: "Turbidez", unidade: "% luz bloqueada", casas: 0, teto: 40, faixas: [[5, "levemente turva"], [15, "turva"], [35, "muito turva"]],
-      texto: "Luz bloqueada pelas partículas em 590–630 nm (sensor de cor)." },
+      texto: "Para que serve: acompanhar o quanto a água está turva (barro, sujeira). Quanto mais alto, mais turva." },
     algas: { nome: "Algas", unidade: "", casas: 3, teto: 0.25, faixas: [[0.05, "moderado"], [0.2, "alto"]],
-      texto: "Absorção extra no vermelho 680 nm (clorofila) em relação ao amarelo 590 nm." },
+      texto: "Para que serve: acompanhar as algas. Subir à tarde é normal (sol); subir dia após dia é sinal de alerta." },
     cor: { nome: "Cor", unidade: "", casas: 3, teto: 0.25, faixas: [[0.05, "moderado"], [0.2, "alto"]],
-      texto: "Absorção extra no violeta 415 nm (matéria orgânica dissolvida) em relação ao verde 555 nm." },
+      texto: "Para que serve: acompanhar a cor da água (amarelada por folhas ou esgoto). Quanto mais alto, mais amarelada." },
   };
   let indiceAtual = "contaminacao", ultimaSerie = [];
   function renderSeriesChart(serie = ultimaSerie) {
@@ -259,7 +259,7 @@
     const chart = $("series-chart"), cfg = INDICES[indiceAtual];
     const pts = serie.filter((p) => Number.isFinite(p[indiceAtual]));
     setChartState("series-wrap", "series-empty", pts.length > 1);
-    if ($("series-description")) $("series-description").textContent = `${cfg.texto} Água da lagoa, média a cada 10 minutos.`;
+    if ($("series-description")) $("series-description").textContent = `${cfg.texto} As linhas tracejadas mostram onde a água muda de nível.`;
     if (!chart || pts.length < 2) return;
     const W = chart.clientWidth || 900, H = chart.clientHeight || 260, m = { t: 18, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const maior = Math.max(cfg.teto, Math.max(...pts.map((p) => p[indiceAtual])) * 1.15);

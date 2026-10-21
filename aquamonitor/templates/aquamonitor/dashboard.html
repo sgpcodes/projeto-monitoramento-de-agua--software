@@ -45,7 +45,7 @@
 
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
-        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Quanto da luz da lanterna consegue atravessar a água, em cada cor. 100% é igual à água limpa; quanto mais baixo, mais suja a água. Se todas as cores caem juntas, a água está turva (barro, sujeira). Se cai mais no roxo, a água está amarelada (folhas, esgoto). Se cai mais no vermelho, tem algas.</p></div>
+        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Para que serve: descobrir o que está sujando a água agora. Como ler: 100% é igual à água limpa; quanto mais baixo, mais suja. Todas as cores caindo juntas = água turva (barro). Mais queda no roxo = água amarelada (folhas, esgoto). Mais queda no vermelho = algas.</p></div>
         <div>
         <div class="spectrum-legend" aria-label="Canais espectrais">
           <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
@@ -62,7 +62,7 @@
 
     <div class="two-col">
       <section class="panel" id="evolucao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Ao longo do dia</h2><p id="series-description">Água da lagoa, média a cada 10 minutos. As linhas tracejadas marcam as faixas de classificação.</p></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Ao longo do dia</h2><p id="series-description">Para que serve: ver se a água da lagoa piorou ou melhorou durante o dia. Escolha o que quer acompanhar nos botões. As linhas tracejadas mostram onde a água muda de nível (por exemplo, de "levemente" para "contaminada").</p></div>
           <div class="segmented" role="tablist" aria-label="Índice do gráfico">
             <button type="button" role="tab" class="seg-btn is-active" data-index="contaminacao" aria-selected="true">Contaminação</button>
             <button type="button" role="tab" class="seg-btn" data-index="turbidez" aria-selected="false">Turbidez</button>
@@ -73,7 +73,7 @@
         <div class="chart-empty" id="series-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
       </section>
       <section class="panel" id="validacao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Sensor de cor × sensor de turbidez</h2><p>Cada ponto é uma medição da lagoa. Se os pontos sobem juntos (na diagonal), os dois sensores concordam e a turbidez é confiável.</p></div></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Sensor de cor × sensor de turbidez</h2><p>Para que serve: conferir se dá para confiar na turbidez. Usamos dois sensores diferentes; se os pontos formam uma linha subindo, os dois concordam e a medida é confiável.</p></div></div>
         <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão: luz bloqueada × NTU"></svg></div>
         <div class="chart-empty" id="scatter-empty" hidden><strong>Falta o sensor de turbidez (NTU)</strong><span>O gráfico aparece quando o sensor de turbidez enviar valores em NTU.</span></div>
       </section>
@@ -81,7 +81,7 @@
 
     <section class="panel" id="evolucao-espectral" data-reveal>
       <div class="panel-heading">
-        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>% de luz que passou em cada cor, média a cada 10 minutos. Todas as linhas caindo juntas = turbidez; só o vermelho caindo = algas; só o violeta caindo = matéria orgânica.</p></div>
+        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>Para que serve: ver quando e por que a água mudou ao longo do dia. Todas as linhas caindo juntas = água ficou turva (chuva, barro). Só a vermelha caindo = algas crescendo. Só a roxa caindo = mais matéria orgânica.</p></div>
         <div>
         <div class="spectrum-legend" aria-label="Canais espectrais">
           <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
@@ -100,7 +100,7 @@
 
     <div class="two-col">
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Comparativo de canais</h2><p id="canais-description">Contagem crua de cada canal na última leitura; a barrinha é o desvio padrão. Serve para conferir a lanterna e o sensor.</p></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Comparativo de canais</h2><p id="canais-description">Para que serve: conferir se o aparelho está medindo bem. Barras muito baixas = pouca luz (lanterna fraca ou torta). Barrinha preta grande = leitura instável.</p></div>
           <div class="segmented" role="tablist" aria-label="Leitura comparada" id="canais-mode">
             <button type="button" role="tab" class="seg-btn is-active" data-canais="atual" aria-selected="true">Atual</button>
             <button type="button" role="tab" class="seg-btn" data-canais="dia" aria-selected="false">Média do dia</button>
@@ -109,14 +109,14 @@
         <div class="chart-empty" id="live-empty" hidden><strong>Aguardando leitura do sensor</strong><span>Os canais aparecem assim que uma amostra chegar.</span></div>
       </section>
       <section class="panel" id="chart-section" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>% da luz bloqueada pelas partículas (590–630 nm, sensor de cor), média a cada 10 minutos.</p></div></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>Para que serve: acompanhar o quanto a água está turva (barro, sujeira) ao longo do dia. Quanto mais alto, mais turva.</p></div></div>
         <div class="chart-wrap" id="turbidity-wrap"><svg id="turbidity-chart" class="chart" role="img" aria-label="Turbidez por horário"></svg></div>
         <div class="chart-empty" id="turbidity-empty" hidden><strong>Sem dados para exibir</strong><span>As medições aparecerão aqui quando chegarem.</span></div>
       </section>
     </div>
 
     <section class="panel" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
+      <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Para que serve: resumir em frases o que os dados de hoje mostram, sem precisar ler os gráficos.</p></div></div>
       <div class="table-scroll"><table class="readings-table"><thead><tr><th>Observação</th></tr></thead><tbody id="observacoes-body"></tbody></table></div>
     </section>
 {% endblock %}
