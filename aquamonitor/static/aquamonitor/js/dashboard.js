@@ -383,8 +383,8 @@
     const q = data?.qualidade, tb = data?.turbidez || {};
     setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
     if (!q?.valida) {
-      cartoesQualidade("ag", { valida: false, alerta: q?.alerta || "Ainda não há leitura válida da lagoa hoje." });
-      renderIndicadoresAmostra("ag-indicadores-body", { niveis: {} });
+      cartoesQualidade("ag", { valida: false, alerta: q?.alerta || "Ainda não há leitura válida da lagoa hoje.", sensor: q?.sensor, luz: q?.luz_bloqueada_pct });
+      renderIndicadoresAmostra("ag-indicadores-body", { niveis: {}, invalida: true });
       setText("ag-conclusao", "Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.");
       return;
     }
@@ -591,7 +591,9 @@
       barra.style.width = "100%"; barra.style.height = "10px";
       addSVG(barra, "rect", { x: 0, y: 0, width: 100, height: 8, rx: 4, fill: "rgba(16,110,135,.12)" });
       if (Number.isFinite(v)) addSVG(barra, "rect", { x: 0, y: 0, width: Math.max(2, clamp(v / 0.4) * 100), height: 8, rx: 4, fill: nivelCor(nv) });
-      const valor = document.createElement("small"); valor.textContent = Number.isFinite(v) ? `Índice ${fx(v, 3)}` : "Sem sinal (a lanterna emite pouco infravermelho)";
+      const valor = document.createElement("small");
+      valor.textContent = Number.isFinite(v) ? `Índice ${fx(v, 3)}` : a.invalida ? "Sem leitura válida agora (veja o alerta acima)"
+        : d.k === "sedimentos" ? "Sem sinal (a lanterna emite pouco infravermelho)" : "Sem dado";
       const texto = document.createElement("p"); Object.assign(texto.style, { margin: "0", fontSize: "17px", lineHeight: "1.5" });
       texto.textContent = nv ? d[nv] : "—";
       corpo.append(topo, barra, valor, texto); card.append(foto, corpo); box.append(card);

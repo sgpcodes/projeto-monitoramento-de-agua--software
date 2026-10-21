@@ -394,6 +394,9 @@ def _qualidade_atual(atual, atual_indices, suja_q, observacoes):
     if q is None or atual_indices["suspeita"]:
         return {
             "valida": False,
+            # Os dados crus continuam aparecendo: sao eles que mostram o que deu errado.
+            "sensor": atual_indices["sensor"],
+            "luz_bloqueada_pct": _numero(atual_indices["turbidez"]),
             "alerta": observacoes[0] if observacoes else "Leitura inválida: confira a lanterna e regrave a água limpa.",
             "conclusao": "Sem leitura válida da lagoa agora: as análises voltam quando a luz no sensor estiver correta.",
         }
@@ -472,7 +475,10 @@ def _dados_painel(data_selecionada, leituras, metricas):
 
     # Ultima leitura valida da lagoa: e ela que aparece no diagnostico e no espectro.
     validas = [(leitura, i) for leitura, i in lagoa if not i["suspeita"]]
-    atual, atual_indices = (validas or lagoa or [(None, None)])[-1]
+    # Tempo real mostra SEMPRE a leitura mais recente. Se ela for suspeita (luz mudou,
+    # pouca luz...), a pagina avisa e esvazia os indicadores, em vez de voltar para
+    # uma leitura valida mais antiga (que nao e o que esta no pote agora).
+    atual, atual_indices = (lagoa or [(None, None)])[-1]
 
     espectro = None
     live = None

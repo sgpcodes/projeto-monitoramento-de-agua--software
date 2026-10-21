@@ -103,20 +103,20 @@ class DashboardDataTests(TestCase):
 
         leitura(0, [60, 58, 57, 56, 55, 60, 61, 50])
         leitura(15, [60, 58, 57, 56, 55, 60, 61, 50])
-        leitura(16, [150, 40, 30, 25, 40, 36, 43, 150], saturado=True)  # luz de fora
+        leitura(5, [150, 40, 30, 25, 40, 36, 43, 150], saturado=True)  # luz de fora (no meio)
 
         payload = self.client.get(reverse("dashboard_data"), {"data": "2026-10-20"}).json()
 
         self.assertEqual(payload["diagnostico"]["contaminacao_pct"], 35)
         self.assertEqual(payload["turbidez"]["luz_bloqueada_pct"], 40.0)
-        self.assertEqual(payload["amostra_atual"]["hora"], "10:15:00")  # ignora a suspeita
+        self.assertEqual(payload["amostra_atual"]["hora"], "10:15:00")
         self.assertEqual(payload["espectro"]["unidade"], "% de luz que passou")
         self.assertEqual(payload["espectro"]["semanas"][0]["valores"][0], 60)
         self.assertEqual(payload["suspeitas"], 1)
         self.assertEqual([p["hora"] for p in payload["serie"]], ["10:00", "10:10"])
         self.assertAlmostEqual(payload["serie"][0]["contaminacao"], 35)
         self.assertGreater(payload["serie"][0]["algas"], 0.07)  # A680 - A590 com 50% e 60%
-        self.assertEqual(payload["leituras"][0]["estado"], "Saturada")
+        self.assertEqual(payload["leituras"][1]["estado"], "Saturada")
         niveis = {c["id"]: c["nivel"] for c in payload["componentes"]}
         self.assertEqual(niveis["turbidez"], "Alto")  # 40% bloqueada (acima de 35%)
         self.assertEqual(niveis["clorofila"], "Moderado")  # indice 0,079 (entre 0,05 e 0,20)
@@ -126,7 +126,7 @@ class DashboardDataTests(TestCase):
         self.assertTrue(0 <= q["indice_geral"] <= 100)
         self.assertIn(q["status"], ("bom", "atenção", "alerta"))
         self.assertTrue(q["cor"]["hex"].startswith("#"))
-        self.assertEqual(payload["leituras"][1]["indice_geral"], q["indice_geral"])
+        self.assertEqual(payload["leituras"][0]["indice_geral"], q["indice_geral"])
         self.assertEqual(len(payload["espectro"]["absorbancia"]), 8)
         self.assertEqual(payload["canais"]["rotulos"][-1], "NIR")
         self.assertEqual(payload["canais"]["medicoes_dia"], 2)
@@ -319,6 +319,15 @@ class DashboardDataTests(TestCase):
         self.assertEqual(d["suspeitas"], 1)
         self.assertEqual(d["leituras"][0]["estado"], "Luz mudou")
         self.assertEqual(d["serie"], [])
+
+    def test_latest_reading_is_shown_even_when_suspect(self):
+        limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
+        self._leitura_cores([67, 69, 69, 68, 68, 69, 67, 67], limpa, minutos=5)
+        self._leitura_cores([11, 11, 12, 11, 11, 12, 11, 11], limpa)  # agora: luz caiu ~89%
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertTrue(d["amostra_atual"]["suspeita"])
+        self.assertFalse(d["qualidade"]["valida"])  # nao mostra dados velhos como se fossem de agora
+        self.assertIn("lanterna", d["qualidade"]["alerta"])
 
     def test_dissolved_color_is_not_mistaken_for_a_light_change(self):
         limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
