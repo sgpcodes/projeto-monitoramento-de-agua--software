@@ -77,7 +77,7 @@
     const pts = points.filter((p) => Number.isFinite(p.turbidez));
     setChartState("turbidity-wrap", "turbidity-empty", pts.length > 0);
     if (!chart || !pts.length) return;
-    const W = 900, H = 230, m = { t: 16, r: 20, b: 34, l: 54 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 230, m = { t: 16, r: 20, b: 34, l: 54 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     // Escala fixa a partir de 0%: uma variacao pequena nao parece um desastre.
     const min = 0, max = tetoRedondo(Math.max(40, Math.max(...pts.map((p) => p.turbidez)) * 1.15), 20);
     const x = (i) => m.l + (pts.length === 1 ? pw / 2 : (i / (pts.length - 1)) * pw);
@@ -116,7 +116,7 @@
     const ok = Array.isArray(values) && values.length > 0 && values.every(Number.isFinite);
     setChartState("spectrum-wrap", "spectrum-empty", ok);
     if (!chart || !ok) return;
-    const W = 900, H = 320, m = { t: 24, r: 24, b: 58, l: 66 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 320, m = { t: 24, r: 24, b: 58, l: 66 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const counts = sp.unidade === "Contagem digital", pct = sp.unidade === "% de luz que passou";
     let min = Math.min(...values), max = Math.max(...values);
     if (pct) { min = 0; max = tetoRedondo(Math.max(100, max + 5), 25); } // 0 a 125%: a agua limpa e a linha dos 100%
@@ -171,7 +171,7 @@
       ? `Média de cada canal nas ${cn?.medicoes_dia ?? 0} leituras válidas da lagoa hoje; a barrinha mostra o quanto variou ao longo do dia.`
       : "Contagem crua de cada canal na última leitura; a barrinha é o desvio padrão das 20 leituras. Serve para conferir a lanterna e o sensor.";
     if (!chart || !ok) return;
-    const W = 900, H = 270, m = { t: 20, r: 20, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 270, m = { t: 20, r: 20, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const maxV = Math.max(...values.map((v, i) => v + (erros?.[i] || 0)), 1) * 1.12, gap = 10, bw = (pw - gap * (values.length - 1)) / values.length;
     const y = (v) => m.t + ph - (v / maxV) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
@@ -216,7 +216,7 @@
     const pts = serie.filter((p) => Array.isArray(p.porcentagens) && fim - minutos(p.hora) <= horasEspectro * 60);
     setChartState("spectral-time-wrap", "spectral-time-empty", pts.length > 1);
     if (!chart || pts.length < 2) return;
-    const W = 900, H = 320, m = { t: 20, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 320, m = { t: 20, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const todos = pts.flatMap((p) => p.porcentagens).filter(Number.isFinite);
     const max = tetoRedondo(Math.max(100, ...todos), 25);
     const x = (i) => m.l + (i / (pts.length - 1)) * pw, y = (v) => m.t + ((max - clamp(v, 0, max)) / max) * ph;
@@ -261,7 +261,7 @@
     setChartState("series-wrap", "series-empty", pts.length > 1);
     if ($("series-description")) $("series-description").textContent = `${cfg.texto} Água da lagoa, média a cada 10 minutos.`;
     if (!chart || pts.length < 2) return;
-    const W = 900, H = 260, m = { t: 18, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 260, m = { t: 18, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const maior = Math.max(cfg.teto, Math.max(...pts.map((p) => p[indiceAtual])) * 1.15);
     const min = 0, max = cfg.casas ? maior : tetoRedondo(maior, 20);
     const x = (i) => m.l + (i / (pts.length - 1)) * pw;
@@ -303,7 +303,7 @@
     const pts = pares.filter((p) => Number.isFinite(p.turbidez) && Number.isFinite(p.ntu));
     setChartState("scatter-wrap", "scatter-empty", pts.length > 1);
     if (!chart || pts.length < 2) return;
-    const W = 900, H = 260, m = { t: 18, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 260, m = { t: 18, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const maxX = tetoRedondo(Math.max(40, ...pts.map((p) => p.turbidez)) * 1.1, 20), maxY = tetoRedondo(Math.max(20, ...pts.map((p) => p.ntu)) * 1.1, 20);
     const x = (v) => m.l + (v / maxX) * pw, y = (v) => m.t + ((maxY - v) / maxY) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
@@ -408,7 +408,7 @@
     if (leg) leg.replaceChildren(...series.map((s) => { const sp = document.createElement("span"); const i = document.createElement("i"); i.style.setProperty("--c", s.cor); sp.append(i, s.nome); return sp; }));
     if (!chart || !ok) return;
     const comNir = series.some((s) => Number.isFinite(s.nir));
-    const W = 900, H = 340, m = { t: 52, r: 24, b: 40, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 340, m = { t: 52, r: 24, b: 40, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const xmax = comNir ? 930 : 700, x = (nm) => m.l + ((nm - 400) / (xmax - 400)) * pw;
     const todos = series.flatMap((s) => [...s.v, s.nir]).filter(Number.isFinite);
     const ymin = Math.min(0, ...todos), ymax = Math.max(0.3, ...todos) * 1.1;
@@ -455,7 +455,8 @@
       const card = document.createElement("article"); card.className = "sample-metric";
       const topo = document.createElement("span"); topo.textContent = d.nome;
       const b = document.createElement("span"); badge(b, nv || "sem dado", nv === "baixo");
-      const barra = document.createElementNS(SVG_NS, "svg"); barra.setAttribute("viewBox", "0 0 100 8"); barra.style.width = "100%";
+      const barra = document.createElementNS(SVG_NS, "svg"); barra.setAttribute("viewBox", "0 0 100 8"); barra.setAttribute("preserveAspectRatio", "none");
+      barra.style.width = "100%"; barra.style.height = "10px";
       addSVG(barra, "rect", { x: 0, y: 0, width: 100, height: 8, rx: 4, fill: "rgba(16,110,135,.12)" });
       if (Number.isFinite(v)) addSVG(barra, "rect", { x: 0, y: 0, width: Math.max(2, clamp(v / 0.4) * 100), height: 8, rx: 4, fill: nivelCor(nv) });
       const valor = document.createElement("small"); valor.textContent = Number.isFinite(v) ? `Índice ${fx(v, 3)}` : "Sem sinal (a lanterna emite pouco infravermelho)";
@@ -470,7 +471,7 @@
     setChartState("cmp-wrap", "cmp-empty", lista.length > 1);
     if (!chart || lista.length < 2) return;
     const inds = [...IND.map((d) => [d.k, d.curto, d.cor]), ["turbidez", "Turbidez", "#d6a417"]];
-    const W = 600, H = 300, m = { t: 14, r: 10, b: 40, l: 44 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 600, H = chart.clientHeight || 300, m = { t: 14, r: 10, b: 40, l: 44 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const grupo = pw / lista.length, bw = (grupo - 26) / inds.length, y = (v) => m.t + (1 - clamp(v ?? 0)) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 5; i++) {
@@ -499,7 +500,8 @@
       if (a && lista.length) { const b = document.createElement("strong"); b.textContent = a.referencia_mais_semelhante.toLowerCase(); concl.append(`${a.nome} é mais semelhante a: `, b, "."); }
     }
     if (!chart || !lista.length) return;
-    const W = 600, row = 40, H = 20 + lista.length * row, m = { l: 190, r: 62 }, pw = W - m.l - m.r;
+    const W = chart.clientWidth || 600, H = chart.clientHeight || 20 + lista.length * 40, row = Math.min(56, (H - 20) / lista.length);
+    const m = { l: Math.min(300, W * 0.32), r: 70 }, pw = W - m.l - m.r;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     lista.forEach((r, i) => {
       const yy = 10 + i * row;
@@ -515,7 +517,7 @@
     const chart = $("dil-chart"), series = amostrasDados?.diluicao || [];
     setChartState("dil-wrap", "dil-empty", series.length > 0);
     if (!chart || !series.length) return;
-    const W = 900, H = 290, gap = 30, cw = (W - gap * (series.length - 1)) / series.length;
+    const W = chart.clientWidth || 900, H = chart.clientHeight || 290, gap = 30, cw = (W - gap * (series.length - 1)) / series.length;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     series.forEach((s, k) => {
       const ox = k * (cw + gap), m = { t: 30, b: 56, l: 42, r: 8 }, pw = cw - m.l - m.r, ph = H - m.t - m.b, cor = colors[(k * 3 + 5) % 8];
@@ -543,7 +545,7 @@
     const ok = datas.length > 1 && specs.some((s) => hist.filter((h) => h.ponto === s.ponto && Number.isFinite(h[s.campo])).length > 1);
     setChartState(wrapId, emptyId, ok);
     if (!chart || !ok) return;
-    const W = 600, H = 280, m = { t: 14, r: 10, b: 30, l: 46 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const W = chart.clientWidth || 600, H = chart.clientHeight || 280, m = { t: 14, r: 10, b: 30, l: 46 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const x = (d) => m.l + (datas.indexOf(d) / (datas.length - 1)) * pw, y = (v) => m.t + ((max - clamp(v, 0, max)) / max) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
@@ -634,6 +636,11 @@
       if (r.ok) { historicoDados = await r.json(); renderHistoricoPontos(); }
     } catch (e) { console.error("Não foi possível carregar o histórico.", e); }
   }
+  let redimensionar = null;
+  addEventListener("resize", () => {
+    clearTimeout(redimensionar);
+    redimensionar = setTimeout(() => { renderTudoAmostras(); if (ultimosDados) renderDashboard(ultimosDados); }, 250);
+  });
   carregarAmostras(); setInterval(carregarAmostras, 60 * 1000);
   carregarHistorico(); setInterval(carregarHistorico, 10 * 60 * 1000);
 
