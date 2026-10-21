@@ -65,7 +65,7 @@ button,input,select{font:inherit;color:inherit}
 @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(31,157,116,.04)}}
 
 /* hero: 170vh, conteúdo sticky que afunda e some conforme rola */
-.hero{position:relative;height:170vh}
+.hero{position:relative;height:100vh}
 .hero-stick{position:sticky;top:0;display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;height:100vh;padding:90px max(6vw,28px) 60px;
   transform:scale(calc(1 - var(--hp)*.12)) translateY(calc(var(--hp)*-30px));opacity:calc(1 - var(--hp)*1.15);filter:blur(calc(var(--hp)*10px));transform-origin:50% 40%}
 .eyebrow{display:inline-flex;align-items:center;gap:9px;margin:0 0 18px;padding:7px 14px;font-size:13px;font-weight:500;color:var(--deep);background:var(--surface);border:1px solid var(--line);border-radius:999px}
