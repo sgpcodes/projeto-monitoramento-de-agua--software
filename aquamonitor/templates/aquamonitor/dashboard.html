@@ -45,7 +45,7 @@
 
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
-        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Para que serve: descobrir o que está sujando a água agora. Como ler: 100% é igual à água limpa; quanto mais baixo, mais suja. Todas as cores caindo juntas = água turva (barro). Mais queda no roxo = água amarelada (folhas, esgoto). Mais queda no vermelho = algas.</p></div>
+        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Para que serve: descobrir o que está sujando a água agora. 100% = igual à água limpa; quanto mais baixo, mais suja.</p></div>
         <div>
         <div class="spectrum-legend" aria-label="Canais espectrais">
           <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
@@ -58,6 +58,15 @@
       </div>
       <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
       <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
+      <div class="spectrum-legend" id="spectrum-chave" style="padding:4px 28px 24px;flex-wrap:wrap;gap:10px 22px">
+        <span><i style="--c:#7f8c8d"></i><b>Todas as cores caindo juntas</b>&nbsp;= água turva (barro, sujeira)</span>
+        <span><i style="--c:#7952c7"></i><b>Queda no roxo</b>&nbsp;= água amarelada (folhas, esgoto)</span>
+        <span><i style="--c:#4c78ed"></i><b>Queda no azul</b>&nbsp;= algas ou água amarelada</span>
+        <span><i style="--c:#18a6d5"></i><b>Queda no ciano</b>&nbsp;= pigmentos de algas</span>
+        <span><i style="--c:#21b98a"></i><b>Queda no verde</b>&nbsp;= barro, partículas</span>
+        <span><i style="--c:#e8a926"></i><b>Queda no amarelo / laranja</b>&nbsp;= barro ou cianobactérias</span>
+        <span><i style="--c:#e34e5a"></i><b>Queda no vermelho</b>&nbsp;= algas (clorofila)</span>
+      </div>
     </section>
 
     <div class="two-col">
