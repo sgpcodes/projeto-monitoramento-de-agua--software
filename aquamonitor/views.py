@@ -563,16 +563,21 @@ def historico(request):
 
 
 REPETICOES = 3  # cada amostra = media das ultimas 3 medicoes validas com aquele nome
+# Agua limpa e agua suja sao padroes: cada regravacao (BOOT -> 1 / BOOT -> 2) ja e a
+# media de 3 leituras feita pelo ESP32 e SUBSTITUI a anterior. As antigas ficam no banco
+# (Historico -> Registros recebidos), mas nao entram mais nas contas.
+PADROES = {"agua_limpa", "agua_podre"}
 
 
 def _resumo_amostra(id_, leituras, branco):
     """Media e desvio das ultimas 3 medicoes validas de uma amostra."""
     reps = []
+    limite = 1 if id_ in PADROES or (leituras and leituras[0].tipo == "branco") else REPETICOES
     for leitura in leituras:
         i = _indices(leitura, {}, branco)
         if not i["suspeita"] and i["qualidade"] is not None:
             reps.append((leitura, i))
-        if len(reps) == REPETICOES:
+        if len(reps) == limite:
             break
     if not reps:
         return None
@@ -608,7 +613,11 @@ def _resumo_amostra(id_, leituras, branco):
         "classe_turbidez": qualidade.classe_texto(ntu),
         **{k: _numero(v) for k, v in ix.items()},
         "niveis": {k: qualidade.nivel_texto(v) for k, v in ix.items()},
-        "intensidades": {k: _numero(v) for k, v in (qualidade.intensidades(q) or {}).items()},
+        "intensidades": (
+            {k: 0.0 for k in qualidade.PESOS} if tipo == "branco"
+            else {k: _numero(v) for k, v in (qualidade.intensidades(q) or {}).items()}
+        ),
+        "padrao": id_ in PADROES or tipo == "branco",
         "indice_geral": geral,
         "status": qualidade.status(geral),
         "cor": qualidade.cor_amostra(porcentagens) if tipo != "branco" else {"hex": "#fbfeff", "nome": "Incolor", "lambda_dom_nm": None},
@@ -653,7 +662,9 @@ def amostras(request):
             a["conclusao"], a["alerta"], a["referencia_mais_semelhante"] = (
                 "Referência do cálculo (absorbância zero por definição).", "Amostra de referência.", "")
 
-    comparar = [a["id"] for a in lista if a["id"] in ("agua_boa", "agua_podre") or a["tipo"] == "lagoa"]
+    # Sem "agua_boa" medida, a agua limpa (padrao) entra no lugar dela.
+    boa_id = "agua_boa" if "agua_boa" in por_id else next((a["id"] for a in lista if a["tipo"] == "branco"), None)
+    comparar = [i for i in (boa_id, "agua_podre") if i in por_id] + [a["id"] for a in lista if a["tipo"] == "lagoa"]
     diluicao = qualidade.serie_diluicao([(a["id"], a["absorbancia"]) for a in lista if a["tipo"] == "corante"])
     padrao = next((a["id"] for a in lista if a["tipo"] == "lagoa"), lista[0]["id"] if lista else None)
     return JsonResponse({"amostras": lista, "comparacao": comparar, "diluicao": diluicao, "padrao": padrao})

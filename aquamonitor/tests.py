@@ -229,6 +229,27 @@ class DashboardDataTests(TestCase):
             self.assertContains(resposta, texto)
             self.assertContains(resposta, 'class="nav-link is-active"')
 
+    def test_rerecording_a_standard_replaces_it(self):
+        collection = Coleta.objects.create(data_coleta=timezone.localdate())
+        def gravar(nome, pct, tipo, minutos):
+            Leitura.objects.create(
+                collection=collection, tipo=tipo, amostra=nome, led="frente", replica=1,
+                medido_em=timezone.now() - timedelta(minutes=minutos), ganho=64, atime=0, astep=0, n=1, saturado=False,
+                media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+                turbidez={"ntu": None}, cores=[{"porcentagem": p} for p in pct], diagnostico={},
+            )
+        gravar("agua_limpa", [100] * 8, "branco", 30)
+        gravar("agua_podre", [50] * 8, "amostra", 29)  # padrao antigo
+        gravar("agua_limpa", [100] * 8, "branco", 5)
+        gravar("agua_podre", [10] * 8, "amostra", 4)  # regravado: substitui
+        gravar("lagoa", [70] * 8, "amostra", 1)
+
+        d = self.client.get(reverse("amostras")).json()
+        podre = next(a for a in d["amostras"] if a["id"] == "agua_podre")
+        self.assertEqual(podre["repeticoes"], 1)
+        self.assertAlmostEqual(podre["absorbancia"][0], 1.0)  # so a gravacao nova (10%)
+        self.assertEqual(d["comparacao"], ["agua_limpa", "agua_podre", "lagoa"])
+
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
 

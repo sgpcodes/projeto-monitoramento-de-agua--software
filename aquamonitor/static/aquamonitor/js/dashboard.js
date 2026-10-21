@@ -336,7 +336,7 @@
   const ONDAS = [415, 445, 480, 515, 555, 590, 630, 680];
   let amostrasDados = null, selecionada = null, historicoDados = null;
   const amostraSel = () => amostrasDados?.amostras.find((a) => a.id === selecionada);
-  const curto = (nome) => nome.replace("Lagoa – ", "").replace(" (água limpa)", "");
+  const curto = (nome) => nome.replace("Lagoa – ", "").replace(" (padrão)", "");
   const nivelCor = (n) => (n === "baixo" ? VERDE : n === "alto" ? VERMELHO : AMBAR);
   const statusClasse = (st) => (st === "bom" ? "state-ok" : "state-warning");
   function badge(el, texto, ok) {
@@ -379,7 +379,8 @@
 
   function renderAmostra() {
     const a = amostraSel(); if (!a) return;
-    setText("am-nome", a.nome); setText("am-leitura", `${a.leitura} · ${a.repeticoes} repetiç${a.repeticoes === 1 ? "ão" : "ões"}`);
+    setText("am-nome", a.nome);
+    setText("am-leitura", a.padrao ? `padrão gravado em ${a.leitura}` : `${a.leitura} · ${a.repeticoes} repetiç${a.repeticoes === 1 ? "ão" : "ões"}`);
     setText("am-conclusao", a.conclusao || "");
     setText("am-ntu", a.turbidez_ntu != null ? `${fx(a.turbidez_ntu, 1)} NTU` : a.luz_bloqueada_pct != null ? `${fx(a.luz_bloqueada_pct, 0)}% luz bloqueada` : "—");
     renderGaugeAmostra(a.turbidez_ntu);

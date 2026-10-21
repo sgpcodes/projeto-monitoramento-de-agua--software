@@ -223,7 +223,7 @@ def classe_texto(ntu):
 
 def nome_amostra(id_, tipo):
     if tipo == "branco":
-        return "Branco (água limpa)"
+        return "Água limpa (padrão)"
     fixos = {"agua_boa": "Água boa", "agua_podre": "Água podre", "agua_limpa": "Água limpa", "lagoa": "Lagoa"}
     if id_ in fixos:
         return fixos[id_]
