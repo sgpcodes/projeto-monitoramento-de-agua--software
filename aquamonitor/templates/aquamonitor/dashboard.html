@@ -119,22 +119,5 @@
       <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
       <div class="table-scroll"><table class="readings-table"><thead><tr><th>Observação</th></tr></thead><tbody id="observacoes-body"></tbody></table></div>
     </section>
-
-    <section class="panel" id="readings" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Registros recebidos</h2><p>Últimas leituras enviadas pelo ESP32 na data selecionada.</p></div><span class="record-count"><strong id="visible-count">{{ leituras|length }}</strong> registros</span></div>
-      <div class="table-toolbar">
-        <label class="search-box" for="reading-search"><input id="reading-search" type="search" placeholder="Buscar amostra…" autocomplete="off"></label>
-        <label class="select-label" for="sample-filter">Amostra<select id="sample-filter"><option value="">Todas as amostras</option>{% for amostra in amostras %}<option value="{{ amostra }}">{{ amostra }}</option>{% endfor %}</select></label>
-        <label class="select-label" for="type-filter">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="amostra">Amostra</option><option value="branco">Branco</option><option value="escuro">Escuro</option></select></label>
-        <button class="export-button" id="export-csv" type="button">Exportar CSV</button>
-      </div>
-      <div class="table-scroll">
-        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>Contaminação</th><th>Turbidez</th><th>NTU</th><th>Clorofila</th><th>Cianobact.</th><th>M. orgânica</th><th>Sedimentos</th><th>Índice geral</th><th>Status</th><th>Estado</th></tr></thead>
-        <tbody id="readings-body">
-        {% for leitura in leituras %}<tr data-sample="{{ leitura.amostra|lower }}" data-type="{{ leitura.tipo }}"><td class="time-cell">{{ leitura.hora }}</td><td class="sample-cell">{{ leitura.amostra }}</td><td><span class="type-badge type-{{ leitura.tipo }}">{{ leitura.tipo }}</span></td><td class="numeric-cell">{% if leitura.contaminacao is not None %}{{ leitura.contaminacao|floatformat:0 }}%{% else %}—{% endif %}</td><td class="numeric-cell">{% if leitura.turbidez is not None %}{{ leitura.turbidez|floatformat:0 }}%{% else %}—{% endif %}</td><td class="numeric-cell">{{ leitura.ntu|floatformat:1|default:"—" }}</td><td class="numeric-cell">{{ leitura.clorofila|floatformat:3|default:"—" }}</td><td class="numeric-cell">{{ leitura.cianobacterias|floatformat:3|default:"—" }}</td><td class="numeric-cell">{{ leitura.materia_organica|floatformat:3|default:"—" }}</td><td class="numeric-cell">{{ leitura.sedimentos|floatformat:3|default:"—" }}</td><td class="numeric-cell">{{ leitura.indice_geral|default:"—" }}</td><td>{{ leitura.status|default:"—" }}</td><td>{% if leitura.estado == "Normal" %}<span class="state-badge state-ok"><i></i>Normal</span>{% else %}<span class="state-badge state-warning"><i></i>{{ leitura.estado }}</span>{% endif %}</td></tr>{% endfor %}
-        </tbody></table>
-        <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
-      </div>
-    </section>
 {% endblock %}
 {% block dados %}{{ dashboard_data|json_script:"dashboard-data" }}{% endblock %}

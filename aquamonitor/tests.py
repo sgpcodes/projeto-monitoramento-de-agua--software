@@ -222,8 +222,8 @@ class DashboardDataTests(TestCase):
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     })
     def test_pages_open(self):
-        for nome, texto in [("dashboard", "Registros recebidos"), ("pagina_amostras", "Semelhança com as referências"),
-                            ("pagina_historico", "Histórico dos pontos da lagoa"), ("pagina_guia", "Como interpretar")]:
+        for nome, texto in [("dashboard", "Assinatura espectral atual"), ("pagina_amostras", "Semelhança com as referências"),
+                            ("pagina_historico", "Registros recebidos"), ("pagina_guia", "Como interpretar")]:
             resposta = self.client.get(reverse(nome))
             self.assertEqual(resposta.status_code, 200, nome)
             self.assertContains(resposta, texto)

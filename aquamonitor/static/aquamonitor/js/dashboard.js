@@ -644,6 +644,20 @@
   carregarAmostras(); setInterval(carregarAmostras, 60 * 1000);
   carregarHistorico(); setInterval(carregarHistorico, 10 * 60 * 1000);
 
+  // Pagina Historico: registros recebidos no dia escolhido.
+  async function carregarRegistros() {
+    const campo = $("registros-data"), url = shell?.dataset.dashboardUrl;
+    if (!campo || !url || document.hidden) return;
+    try {
+      const u = new URL(url, location.href); u.searchParams.set("data", campo.value);
+      const r = await fetch(u, { cache: "no-store", headers: { Accept: "application/json" } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json(); updateSampleFilter(d.leituras || []); renderReadings(d);
+    } catch (e) { console.error("Não foi possível carregar os registros.", e); }
+  }
+  $("registros-data")?.addEventListener("change", carregarRegistros);
+  carregarRegistros(); setInterval(carregarRegistros, 60 * 1000);
+
   /* ---------- tabelas ---------- */
   let rows = [];
   function renderReadings(data) {

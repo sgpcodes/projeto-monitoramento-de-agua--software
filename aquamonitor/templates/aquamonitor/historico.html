@@ -24,4 +24,20 @@
       <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Transparência (Secchi), chuva, temperatura, observação e foto.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
       <div class="table-scroll"><table class="readings-table"><thead><tr><th>Data</th><th>Ponto</th><th>Secchi</th><th>Chuva 48h</th><th>Temp.</th><th>Observação</th><th>Foto</th></tr></thead><tbody id="coletas-body"></tbody></table></div>
     </section>
+
+    <section class="panel" id="readings" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Registros recebidos</h2><p>Leituras enviadas pelo ESP32 no dia escolhido (as 60 mais recentes).</p></div><span class="record-count"><strong id="visible-count">0</strong> registros</span></div>
+      <div class="table-toolbar">
+        <label class="select-label" for="registros-data">Dia<input id="registros-data" type="date" value="{{ data_selecionada|date:'Y-m-d' }}"></label>
+        <label class="search-box" for="reading-search"><input id="reading-search" type="search" placeholder="Buscar amostra…" autocomplete="off"></label>
+        <label class="select-label" for="sample-filter">Amostra<select id="sample-filter"><option value="">Todas as amostras</option></select></label>
+        <label class="select-label" for="type-filter">Tipo<select id="type-filter"><option value="">Todos os tipos</option><option value="amostra">Amostra</option><option value="branco">Branco</option><option value="escuro">Escuro</option></select></label>
+        <button class="export-button" id="export-csv" type="button">Exportar CSV</button>
+      </div>
+      <div class="table-scroll">
+        <table class="readings-table"><thead><tr><th>Horário</th><th>Amostra</th><th>Tipo</th><th>Contaminação</th><th>Turbidez</th><th>NTU</th><th>Clorofila</th><th>Cianobact.</th><th>M. orgânica</th><th>Sedimentos</th><th>Índice geral</th><th>Status</th><th>Estado</th></tr></thead>
+        <tbody id="readings-body"></tbody></table>
+        <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
+      </div>
+    </section>
 {% endblock %}
