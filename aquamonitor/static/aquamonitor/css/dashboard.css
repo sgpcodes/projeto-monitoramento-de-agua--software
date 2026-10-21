@@ -66,8 +66,9 @@ button,input,select{font:inherit;color:inherit}
 
 /* hero: 170vh, conteúdo sticky que afunda e some conforme rola */
 .hero{position:relative;height:100vh}
-.hero-stick{position:sticky;top:0;display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;height:100vh;padding:90px max(6vw,28px) 60px;
+.hero-stick{position:sticky;top:0;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;height:100vh;padding:90px max(6vw,28px) 60px;
   transform:scale(calc(1 - var(--hp)*.12)) translateY(calc(var(--hp)*-30px));opacity:calc(1 - var(--hp)*1.15);filter:blur(calc(var(--hp)*10px));transform-origin:50% 40%}
+.hero-copy{position:relative;z-index:1}
 .eyebrow{display:inline-flex;align-items:center;gap:9px;margin:0 0 18px;padding:7px 14px;font-size:13px;font-weight:500;color:var(--deep);background:var(--surface);border:1px solid var(--line);border-radius:999px}
 .hero h1{margin:0 0 18px;font:800 clamp(40px,6.4vw,92px)/.98 var(--display);letter-spacing:-.045em}
 .grad-text{background:linear-gradient(110deg,#0a7c99,#19b5c8 45%,#4aa3dd);background-size:200% 200%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shift 8s ease infinite}
@@ -80,7 +81,9 @@ button,input,select{font:inherit;color:inherit}
 .date-control input{flex:1;min-width:0;padding:0 10px;background:none;border:0;outline:0;font-size:13px}
 .date-control button{height:38px;padding:0 16px;color:#fff;font-weight:600;font-size:13px;background:linear-gradient(120deg,#19b5c8,#0a7c99);border:0;border-radius:10px;cursor:pointer;transition:transform .3s var(--ease),box-shadow .3s}
 .date-control button:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(10,124,153,.3)}
-.scroll-hint{margin:34px 0 0;font-size:13px;color:var(--muted);animation:bob 2.4s ease-in-out infinite}
+.scroll-hint{display:flex;align-items:center;gap:12px;width:fit-content;margin:34px 0 0;padding:11px 16px;font-size:13px;font-weight:600;color:var(--deep);background:rgba(255,255,255,.76);border:1px solid rgba(25,181,200,.22);border-radius:999px;box-shadow:0 8px 28px rgba(10,124,153,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:bob 2.4s ease-in-out infinite}
+.scroll-hint::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+[data-theme="dark"] .scroll-hint{background:rgba(20,42,50,.82);border-color:rgba(130,195,207,.25)}
 @keyframes bob{50%{transform:translateY(6px)}}
 .hero-visual{position:relative;height:min(52vh,460px)}
 .ring{position:absolute;top:50%;left:50%;border:1.5px solid rgba(10,124,153,.3);border-radius:50%;transform:translate(-50%,-50%);animation:ripple 7s ease-out infinite}
@@ -88,10 +91,10 @@ button,input,select{font:inherit;color:inherit}
 @keyframes ripple{0%{opacity:.9;transform:translate(-50%,-50%) scale(.55)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
 .drop{position:absolute;top:50%;left:50%;width:34%;transform:translate(-50%,-50%);filter:drop-shadow(0 24px 30px rgba(10,124,153,.3));animation:float 6s ease-in-out infinite}
 @keyframes float{50%{transform:translate(-50%,-56%)}}
-.waves{position:absolute;left:0;bottom:0;width:100%;height:160px}
-.waves path{animation:sway 9s ease-in-out infinite alternate}
-.w1{fill:rgba(255,255,255,.6)}.w2{fill:rgba(246,254,255,.95);animation-duration:12s!important;animation-direction:alternate-reverse!important}
-[data-theme="dark"] .w1{fill:rgba(16,42,51,.65)}[data-theme="dark"] .w2{fill:rgba(11,23,29,.95)}
+.waves{position:absolute;left:0;bottom:0;z-index:0;width:100%;height:160px;pointer-events:none}
+.waves path{animation:sway 14s ease-in-out infinite alternate;transition:fill 1.2s ease}
+.w1{fill:rgba(25,181,200,.16)}.w2{fill:rgba(114,213,224,.28);animation-duration:19s!important;animation-direction:alternate-reverse!important}
+[data-theme="dark"] .w1{fill:rgba(16,100,115,.24)}[data-theme="dark"] .w2{fill:rgba(11,47,58,.5)}
 @keyframes sway{to{transform:translateX(-60px)}}
 
 /* conteúdo */
@@ -194,8 +197,6 @@ button,input,select{font:inherit;color:inherit}
 .readings-table th{font-size:14px}.readings-table td{font-size:15px}
 .type-badge,.state-badge{font-size:14px}
 .spectrum-legend span{font-size:14px}
-/* Ondas paradas e cobrindo a largura toda */
-.waves path{animation:none!important}
 /* Letras maiores e mais legiveis */
 .nav-link{font-size:17px}.brand strong{font-size:19px}
 .nav-status{font-size:14px}.nav-status strong{font-size:14px}.theme-toggle{font-size:14px}
