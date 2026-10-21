@@ -70,7 +70,37 @@
 {% endblock %}
   <div class="page-content">
 {% block conteudo %}{% endblock %}
-    <footer class="page-footer"><strong>AquaMonitor</strong><span>Universidade de Vassouras, Engenharia de Software. Maricá, outubro de 2026.</span></footer>
+    <footer class="footer-sea">
+      <svg class="waves footer-waves" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="footerSeaDepth" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--sea-shallow)"/>
+            <stop offset="1" stop-color="var(--sea-deep)"/>
+          </linearGradient>
+          <linearGradient id="footerSeaSurface" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--sea-surface)"/>
+            <stop offset="1" stop-color="var(--sea-surface-deep)"/>
+          </linearGradient>
+          <linearGradient id="footerSeaGlint" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+            <stop offset=".24" stop-color="#fff" stop-opacity=".9"/>
+            <stop offset=".58" stop-color="#b8fbff" stop-opacity=".55"/>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="w1" fill="url(#footerSeaDepth)" d="M0 80C240 20 480 140 720 80S1200 20 1440 80C1493 93 1547 67 1600 80V160H0Z"/>
+        <path class="w2" fill="url(#footerSeaSurface)" d="M0 100C240 60 480 150 720 100S1200 60 1440 100C1493 113 1547 87 1600 100V122C1547 135 1493 109 1440 122C1200 158 960 116 720 134S240 158 0 122Z"/>
+        <path class="w-glint w-glint-a" stroke="url(#footerSeaGlint)" d="M0 80C240 20 480 140 720 80S1200 20 1440 80C1493 93 1547 67 1600 80"/>
+        <path class="w-glint w-glint-b" stroke="url(#footerSeaGlint)" d="M100 102C340 62 500 148 740 102S1220 62 1440 102C1493 115 1547 89 1600 102"/>
+      </svg>
+      <div class="footer-content">
+        <div class="footer-identity">
+          <strong>AquaMonitor</strong>
+          <span>Universidade de Vassouras · Engenharia de Software · Maricá, outubro de 2026</span>
+        </div>
+        <small>© 2026 projeto-monitoramento-de-agua</small>
+      </div>
+    </footer>
   </div>
 </main>
 </div>
