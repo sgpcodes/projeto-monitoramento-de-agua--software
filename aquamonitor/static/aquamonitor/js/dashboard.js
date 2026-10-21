@@ -285,6 +285,8 @@
       texto: "Para que serve: acompanhar as algas. Subir à tarde é normal (sol); subir dia após dia é sinal de alerta." },
     cor: { nome: "Cor", unidade: "", casas: 3, teto: 0.25, faixas: [[0.05, "moderado"], [0.2, "alto"]],
       texto: "Para que serve: acompanhar a cor da água (amarelada por folhas ou esgoto). Quanto mais alto, mais amarelada." },
+    tensao_v: { nome: "Tensão do sensor de turbidez", unidade: "V", casas: 2, teto: 5, faixas: [],
+      texto: "Para que serve: acompanhar o sinal cru do sensor de turbidez (calibração em NTU pendente). Lacunas = leitura com defeito ou sem envio." },
   };
   let indiceAtual = "contaminacao", ultimaSerie = [];
   function renderSeriesChart(serie = ultimaSerie) {
@@ -333,23 +335,46 @@
   /* ---------- validacao: sensor de cor x sensor de turbidez ---------- */
   function renderScatterChart(pares = []) {
     const chart = $("scatter-chart");
-    const pts = pares.filter((p) => Number.isFinite(p.turbidez) && Number.isFinite(p.ntu));
+    const pts = pares.filter((p) => Number.isFinite(p.turbidez) && Number.isFinite(p.tensao_v));
     setChartState("scatter-wrap", "scatter-empty", pts.length > 1);
     if (!chart || pts.length < 2) return;
     const W = chart.clientWidth || 900, H = chart.clientHeight || 260, m = { t: 18, r: 24, b: 44, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
-    const maxX = tetoRedondo(Math.max(40, ...pts.map((p) => p.turbidez)) * 1.1, 20), maxY = tetoRedondo(Math.max(20, ...pts.map((p) => p.ntu)) * 1.1, 20);
+    const maxX = tetoRedondo(Math.max(40, ...pts.map((p) => p.turbidez)) * 1.1, 20), maxY = Math.ceil(Math.max(1, ...pts.map((p) => p.tensao_v)) * 1.1);
     const x = (v) => m.l + (v / maxX) * pw, y = (v) => m.t + ((maxY - v) / maxY) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
     for (let i = 0; i <= 4; i++) {
       const vy = (maxY * i) / 4, vx = (maxX * i) / 4;
       addSVG(chart, "line", { x1: m.l, y1: y(vy), x2: W - m.r, y2: y(vy), class: "grid-line" });
-      svgText(chart, m.l - 10, y(vy) + 4, `${Math.round(vy)}`, { class: "axis-text", "text-anchor": "end" });
+      svgText(chart, m.l - 10, y(vy) + 4, fx(vy, 1), { class: "axis-text", "text-anchor": "end" });
       svgText(chart, x(vx), H - 24, `${Math.round(vx)}%`, { class: "axis-text", "text-anchor": "middle" });
     }
     svgText(chart, m.l + pw / 2, H - 6, "luz bloqueada (sensor de cor)  →", { class: "axis-label", "text-anchor": "middle" });
-    svgText(chart, m.l + 6, m.t + 10, "NTU (sensor de turbidez)", { class: "axis-label" });
-    pts.forEach((p) => addSVG(chart, "circle", { cx: x(p.turbidez), cy: y(p.ntu), r: 4, fill: "#19b5c8", "fill-opacity": 0.55, stroke: "#0a8fa8", class: "series-dot",
-      "data-tip": `${p.hora} · ${fmt(p.turbidez, 1)}% luz bloqueada · ${fmt(p.ntu, 1)} NTU` }));
+    svgText(chart, m.l + 6, m.t + 10, "tensão do sensor de turbidez (V)", { class: "axis-label" });
+    pts.forEach((p) => addSVG(chart, "circle", { cx: x(p.turbidez), cy: y(p.tensao_v), r: 4, fill: "#19b5c8", "fill-opacity": 0.55, stroke: "#0a8fa8", class: "series-dot",
+      "data-tip": `${p.hora} · ${fmt(p.turbidez, 1)}% luz bloqueada · ${fx(p.tensao_v, 2)} V` }));
+  }
+
+  /* ---------- diagnostico do sensor de turbidez (ultima leitura recebida) ---------- */
+  const ESTADOS_SENSOR = { ok: "leitura ok", sem_sinal: "sem sinal (fio solto ou sem energia)", saturado: "saturado (ADC no máximo)",
+    instavel: "instável (variou muito na medição)", fora_da_faixa_da_curva: "fora da faixa da curva", desativado: "sensor desativado", sem_dado: "sem dado" };
+  const LEITURAS_SENSOR = { invalida: "inválida", experimental: "experimental (calibração pendente)", calibrada: "calibrada" };
+  function renderDiagnosticoSensor(data) {
+    const box = $("diag-sensor-body"); if (!box) return;
+    const s = data?.sensor_turbidez;
+    const linhas = !s ? [["Situação", "nenhuma leitura recebida nesta data"]] : [
+      ["Última medição", s.hora],
+      ["ADC bruto", s.adc_raw == null ? "não enviado (firmware antigo)" : `${fx(s.adc_raw, 0)} (de 0 a 4095)`],
+      ["Tensão calculada", s.tensao_v == null ? "—" : `${fx(s.tensao_v, 3)} V`],
+      ["Variação na medição", s.desvio_mv == null ? "—" : `${fx(s.desvio_mv, 0)} mV`],
+      ["Estado da leitura", ESTADOS_SENSOR[s.status] || s.status || "—"],
+      ["Classificação", LEITURAS_SENSOR[s.estado_leitura] || "—"],
+      ["Calibração", s.calibracao_status === "validada" ? "validada" : "pendente (NTU não confirmado)"],
+      ["Curva usada", s.calibracao_id || "—"],
+      ["NTU estimado pela curva", s.ntu_experimental == null ? "—" : `${fx(s.ntu_experimental, 0)} (experimental, não validado)`],
+      ["Versão do firmware", s.firmware_version || "—"],
+    ];
+    box.replaceChildren();
+    linhas.forEach(([k, v]) => { const tr = box.insertRow(); tr.insertCell().textContent = k; const td = tr.insertCell(); td.textContent = v; td.style.whiteSpace = "normal"; });
   }
 
   /* ---------- pagina Agora: turbidez e indice geral da ultima leitura ---------- */
@@ -419,13 +444,15 @@
     const svg = $(id); if (!svg) return;
     svg.replaceChildren(); svg.style.display = Number.isFinite(ntu) ? "" : "none";
     if (!Number.isFinite(ntu)) return;
-    const MAX = 200, cx = 100, cy = 100, R = 80;
+    // A escala cresce com o valor (nunca corta o ponteiro). As faixas sao os limites da
+    // CONAMA 357/2005 (40 e 100 NTU) e so aparecem com NTU de calibracao validada.
+    const MAX = Math.max(200, Math.ceil((ntu * 1.15) / 100) * 100), cx = 100, cy = 100, R = 80;
     const pt = (v, r) => { const a = Math.PI * (1 - Math.min(v, MAX) / MAX); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
     [[0, 40, VERDE], [40, 100, AMBAR], [100, MAX, VERMELHO]].forEach(([a, b, c]) => {
-      const [x0, y0] = pt(a + 0.6, R), [x1, y1] = pt(b - 0.6, R);
+      const [x0, y0] = pt(a + MAX * 0.003, R), [x1, y1] = pt(b - MAX * 0.003, R);
       addSVG(svg, "path", { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}`, stroke: c, "stroke-width": 16, fill: "none", opacity: 0.85 });
     });
-    [0, 40, 100, 200].forEach((v) => { const [x, y] = pt(v, R + 14); svgText(svg, x, y + 3, String(v), { class: "axis-text", "text-anchor": "middle" }); });
+    [0, 40, 100, MAX].forEach((v) => { const [x, y] = pt(v, R + 14); svgText(svg, x, y + 3, String(v), { class: "axis-text", "text-anchor": "middle" }); });
     const [nx, ny] = pt(ntu, R - 6);
     addSVG(svg, "line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#23414d", "stroke-width": 3, "stroke-linecap": "round" });
     addSVG(svg, "circle", { cx, cy, r: 6, fill: "#23414d" });
@@ -434,11 +461,13 @@
   const COR_STATUS = { bom: VERDE, "atenção": AMBAR, alerta: VERMELHO };
   // Os 4 cartoes do design (turbidez, indice geral, cor, alerta) com prefixo am- ou ag-.
   function cartoesQualidade(p, d) {
+    // ntu aqui e SEMPRE o validado (o back-end manda null enquanto a calibracao estiver pendente).
     const ntu = d?.ntu;
+    setText(`${p}-ntu-label`, ntu != null ? "Turbidez" : "Índice relativo de turbidez");
     setText(`${p}-ntu`, ntu != null ? fx(ntu, 1) : d?.luz != null ? `${fx(d.luz, 0)}%` : "—");
-    setText(`${p}-ntu-un`, ntu != null ? "NTU" : d?.luz != null ? "luz bloqueada" : "");
+    setText(`${p}-ntu-un`, ntu != null ? "NTU" : d?.luz != null ? "luz bloqueada (sensor de cor)" : "");
     renderGaugeAmostra(ntu, `${p}-gauge`);
-    const classe = d?.valida === false ? "sem leitura válida" : ntu == null ? "Sem leitura de NTU (sensor de cor)" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Fora dos limites CONAMA";
+    const classe = d?.valida === false ? "sem leitura válida" : ntu == null ? "Calibração em NTU pendente" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Acima de 100 NTU (CONAMA 357/2005)";
     badge($(`${p}-classe`), classe, ntu != null && ntu <= 40);
     const iq = $(`${p}-iq`);
     if (iq) { iq.textContent = d?.iq == null ? "—" : String(d.iq); iq.style.color = COR_STATUS[d?.status] || ""; }
@@ -750,15 +779,15 @@
       const contam = r.contaminacao == null ? "—" : `${Math.round(r.contaminacao)}%`;
       const turb = r.turbidez == null ? "—" : `${Math.round(r.turbidez)}%${r.turbidez_classe ? ` · ${r.turbidez_classe}` : ""}`;
       const num = (v, casas) => (v == null ? "—" : Number(v).toFixed(casas));
-      const ntu = num(r.ntu, 1), clorofila = num(r.clorofila, 3), cianobacterias = num(r.cianobacterias, 3);
+      const ntu = num(r.ntu, 1), tensao = num(r.tensao_v, 2), clorofila = num(r.clorofila, 3), cianobacterias = num(r.cianobacterias, 3);
       const materiaOrganica = num(r.materia_organica, 3), sedimentos = num(r.sedimentos, 3);
       const indiceGeral = r.indice_geral ?? "—", status = r.status || "—";
       const estado = r.estado || (r.saturado ? "Saturada" : "Normal");
-      const csvValues = [r.hora, r.amostra, r.tipo_display, contam, turb, ntu, clorofila, cianobacterias,
+      const csvValues = [r.hora, r.amostra, r.tipo_display, contam, turb, ntu, tensao, clorofila, cianobacterias,
         materiaOrganica, sedimentos, indiceGeral, status, estado];
       tr.dataset.csvValues = JSON.stringify(csvValues);
       [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb],
-        ["numeric-cell", ntu], ["numeric-cell", clorofila], ["numeric-cell", cianobacterias],
+        ["numeric-cell", ntu], ["numeric-cell", tensao], ["numeric-cell", clorofila], ["numeric-cell", cianobacterias],
         ["numeric-cell", materiaOrganica], ["numeric-cell", sedimentos], ["numeric-cell", indiceGeral], ["", status]].forEach(([cls, text], i) => {
         const td = tr.insertCell(); if (cls) td.className = cls;
         if (i === 2) { const b = document.createElement("span"); b.className = `type-badge type-${r.tipo}`; b.textContent = text; td.append(b); }
@@ -771,7 +800,7 @@
     });
     if (!list.length) {
       const tr = body.insertRow(); tr.dataset.empty = "true";
-      const td = tr.insertCell(); td.colSpan = 13; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
+      const td = tr.insertCell(); td.colSpan = 14; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
     }
     rows = [...body.querySelectorAll("tr:not([data-empty])")];
     filterReadings();
@@ -836,7 +865,7 @@
   function renderDashboard(data) {
     if (!data || data.data !== shell?.dataset.selectedDate) return;
     const dg = data.diagnostico;
-    renderQualidadeAgora(data);
+    renderQualidadeAgora(data); renderDiagnosticoSensor(data);
     if ($("sync-badge")) $("sync-badge").textContent = data.demo ? "Dados de demonstração" : "Sincronização";
     if ($("sync-message")) $("sync-message").textContent = data.demo
       ? "Valores de exemplo; não foram enviados pelo Arduino nem gravados no banco."
@@ -868,7 +897,7 @@
   });
   function exportReadings(format) {
     if (!filteredRows.length) return;
-    const heads = ["Horário", "Amostra", "Tipo", "Contaminação", "Turbidez", "NTU", "Clorofila", "Cianobact.",
+    const heads = ["Horário", "Amostra", "Tipo", "Contaminação", "Turbidez", "NTU (validado)", "Sensor turbidez (V)", "Clorofila", "Cianobact.",
       "M. orgânica", "Sedimentos", "Índice geral", "Status", "Estado"];
     const records = filteredRows.map((r) => JSON.parse(r.dataset.csvValues));
     const isCsv = format === "csv";

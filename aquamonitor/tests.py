@@ -178,7 +178,8 @@ class DashboardDataTests(TestCase):
             collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
             medido_em=timezone.now(), ganho=64, atime=0, astep=0, n=1, saturado=False,
             media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
-            turbidez={"ntu": 12.0, "tensao_v": 4.0}, cores=[{"porcentagem": 70} for _ in range(8)], diagnostico={},
+            turbidez={"ntu": 12.0, "tensao_v": 4.0, "status": "ok", "calibracao_status": "validada", "calibracao_id": "teste-v1"},
+            cores=[{"porcentagem": 70} for _ in range(8)], diagnostico={},
         )
 
         payload = self.client.get(reverse("dashboard_data")).json()
@@ -211,7 +212,7 @@ class DashboardDataTests(TestCase):
         p2 = next(a for a in d["amostras"] if a["id"] == "lagoa_p2")
         self.assertEqual(p2["nome"], "Lagoa – Ponto 2")
         self.assertEqual(p2["repeticoes"], 3)
-        self.assertAlmostEqual(p2["turbidez_ntu"], 69.0)
+        self.assertIsNone(p2["turbidez_ntu"])  # NTU de firmware antigo: estimativa, nao validado
         self.assertEqual(p2["referencia_mais_semelhante"], "Água esverdeada (algas)")
         self.assertIn("Status:", p2["conclusao"])
         self.assertEqual(d["padrao"], "lagoa_p2")
@@ -249,6 +250,69 @@ class DashboardDataTests(TestCase):
         self.assertEqual(podre["repeticoes"], 1)
         self.assertAlmostEqual(podre["absorbancia"][0], 1.0)  # so a gravacao nova (10%)
         self.assertEqual(d["comparacao"], ["agua_limpa", "agua_podre", "lagoa"])
+
+    def _leitura_turbidez(self, turbidez, minutos=0, extra=None):
+        collection, _ = Coleta.objects.get_or_create(data_coleta=timezone.localdate())
+        return Leitura.objects.create(
+            collection=collection, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.now() - timedelta(minutes=minutos), ganho=64, atime=0, astep=0, n=1, saturado=False,
+            media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais=extra or {},
+            turbidez=turbidez, cores=[{"porcentagem": 70} for _ in range(8)], diagnostico={},
+        )
+
+    def test_turbidity_ntu_only_counts_when_calibration_is_validated(self):
+        pendente = {"ntu": None, "ntu_experimental": 1593.0, "tensao_v": 3.69, "adc_raw": 2290, "desvio_mv": 8,
+                    "status": "ok", "calibracao_status": "pendente", "calibracao_id": "dfrobot-sen0189-fabricante-v1"}
+        self._leitura_turbidez(pendente, extra={"firmware_version": "2026.10.21-turbidez-v2"})
+
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertIsNone(d["qualidade"]["ntu"])  # nao vira NTU validado
+        sensor = d["sensor_turbidez"]
+        self.assertEqual(sensor["estado_leitura"], "experimental")
+        self.assertEqual(sensor["calibracao_status"], "pendente")
+        self.assertEqual(sensor["ntu_experimental"], 1593.0)
+        self.assertEqual(sensor["adc_raw"], 2290)
+        self.assertEqual(sensor["firmware_version"], "2026.10.21-turbidez-v2")
+        self.assertEqual(d["leituras"][0]["tensao_v"], 3.69)
+        self.assertEqual(d["serie"][0]["tensao_v"], 3.69)
+
+    def test_invalid_turbidity_reading_is_not_turned_into_zero(self):
+        self._leitura_turbidez({"ntu": None, "ntu_experimental": None, "tensao_v": 0.2, "status": "sem_sinal",
+                                "calibracao_status": "pendente"})
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertEqual(d["sensor_turbidez"]["estado_leitura"], "invalida")
+        self.assertIsNone(d["qualidade"]["ntu"])
+        self.assertIsNone(d["serie"][0]["tensao_v"])  # leitura com defeito nao entra na serie
+
+    def test_old_firmware_records_stay_readable_as_experimental(self):
+        self._leitura_turbidez({"ntu": 868.0, "tensao_v": 3.94, "classificacao": "MUITO TURVA"})
+        d = self.client.get(reverse("dashboard_data")).json()
+        sensor = d["sensor_turbidez"]
+        self.assertEqual(sensor["estado_leitura"], "experimental")
+        self.assertEqual(sensor["ntu_experimental"], 868.0)
+        self.assertIsNone(sensor["ntu"])
+        self.assertIn("firmware antigo", sensor["firmware_version"])
+
+    def test_esp32_payload_with_new_turbidity_fields_is_accepted(self):
+        payload = {
+            "data_coleta": "2026-10-21", "medido_em": "2026-10-21T12:30:00-03:00", "tipo": "amostra",
+            "amostra": "lagoa", "firmware_version": "2026.10.21-turbidez-v2", "ganho": 64, "saturado": False,
+            "media": {channel: 20000 for channel in CHANNELS},
+            "turbidez": {"status": "ok", "calibracao_id": "dfrobot-sen0189-fabricante-v1", "calibracao_status": "pendente",
+                         "adc_raw": 2290, "tensao_v": 3.69, "desvio_mv": 8, "ntu_experimental": 1593.0, "ntu": None,
+                         "luz_bloqueada_pct": 12.0, "classificacao": "LEVEMENTE TURVA"},
+            "cores": [{"nome": "x", "comprimento_onda_nm": 415, "valor": 1, "porcentagem": 70}],
+            "diagnostico": {"turbidez": "LEVEMENTE TURVA"},
+        }
+        with self.settings():
+            import os
+            os.environ["ESP32_API_KEY"] = "chave-teste"
+            r = self.client.post(reverse("receber_leitura"), payload, content_type="application/json",
+                                 HTTP_X_API_KEY="chave-teste")
+        self.assertEqual(r.status_code, 201)
+        salva = Leitura.objects.get()
+        self.assertEqual(salva.turbidez["adc_raw"], 2290)  # dado cru preservado
+        self.assertEqual(salva.dados_originais["firmware_version"], "2026.10.21-turbidez-v2")
 
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})

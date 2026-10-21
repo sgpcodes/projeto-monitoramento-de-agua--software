@@ -101,7 +101,7 @@
       </div>
       <p class="sample-summary" id="ag-conclusao">Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.</p>
       <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
-        <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Turbidez</span><div><strong id="ag-ntu" style="font-size:54px;line-height:1">—</strong> <small id="ag-ntu-un" style="font-size:20px">NTU</small></div><svg id="ag-gauge" viewBox="-14 -14 228 132" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:300px"></svg><span class="state-badge state-ok" id="ag-classe" style="justify-self:start;align-self:start"><i></i>—</span></article>
+        <article class="sample-metric" style="align-content:start;gap:10px"><span id="ag-ntu-label" style="text-transform:uppercase;letter-spacing:.07em">Turbidez</span><div><strong id="ag-ntu" style="font-size:54px;line-height:1">—</strong> <small id="ag-ntu-un" style="font-size:20px">NTU</small></div><svg id="ag-gauge" viewBox="-14 -14 228 132" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:300px"></svg><span class="state-badge state-ok" id="ag-classe" style="justify-self:start;align-self:start"><i></i>—</span></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Índice geral de qualidade</span><div><strong id="ag-iq" style="font-size:54px;line-height:1">—</strong> <small style="font-size:20px">de 100</small></div><svg id="ag-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:100px"></svg><span class="state-badge state-ok" id="ag-status" style="justify-self:start;align-self:start"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Cor da amostra</span><div style="display:flex;gap:16px;align-items:center"><svg id="ag-swatch" viewBox="0 0 88 88" aria-hidden="true" style="width:88px;flex:none"></svg><div style="display:grid;gap:4px"><strong id="ag-cor" style="font-size:24px">—</strong><small id="ag-cor-hex">—</small><small id="ag-cor-lambda">—</small></div></div></article>
         <article class="sample-metric" id="ag-card-alerta" style="align-content:start;gap:10px;border-left:6px solid var(--line)"><span style="text-transform:uppercase;letter-spacing:.07em">Alerta principal</span><p id="ag-alerta" style="margin:0;font-size:18px;line-height:1.5;color:var(--ink)">—</p></article>
@@ -111,6 +111,13 @@
     <section class="panel" id="ag-indicadores" data-reveal>
       <div class="panel-heading"><div><p class="panel-kicker">Tempo real · amostra atual</p><h2>O que esta amostra indica</h2><p>Para que serve: dizer, em palavras, o que tem na água da lagoa agora e em que quantidade. Barra verde = pouco; amarela = moderado; vermelha = muito. <small>Fotos: Wikimedia Commons (Algal bloom at Anderson Lake State Park, CC BY-SA 4.0; Lake Burley Griffin cyanobacteria, CC BY-SA 3.0; Some Tea With Your River, Sir?, CC BY 2.0; Muddy water, Belfast, CC BY-SA 2.0).</small></p></div></div>
       <div class="sample-metrics" id="ag-indicadores-body" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
+    </section>
+
+    <section class="panel" id="diagnostico-sensor" data-reveal>
+      <details>
+        <summary class="panel-heading" style="cursor:pointer;list-style:revert"><div><p class="panel-kicker">Técnico</p><h2>Diagnóstico do sensor de turbidez</h2><p>Para que serve: conferir o que o sensor de turbidez mandou na última leitura (dado cru, estado e calibração). Clique para abrir.</p></div></summary>
+        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Item</th><th>Valor</th></tr></thead><tbody id="diag-sensor-body"></tbody></table></div>
+      </details>
     </section>
 
     <section class="sync" id="sync-notice" aria-live="polite" data-reveal>
@@ -152,14 +159,15 @@
             <button type="button" role="tab" class="seg-btn" data-index="turbidez" aria-selected="false">Turbidez</button>
             <button type="button" role="tab" class="seg-btn" data-index="algas" aria-selected="false">Algas</button>
             <button type="button" role="tab" class="seg-btn" data-index="cor" aria-selected="false">Cor</button>
+            <button type="button" role="tab" class="seg-btn" data-index="tensao_v" aria-selected="false">Sensor (V)</button>
           </div></div>
         <div class="chart-wrap" id="series-wrap"><svg id="series-chart" class="chart" role="img" aria-label="Evolução ao longo do dia"></svg></div>
         <div class="chart-empty" id="series-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
       </section>
       <section class="panel" id="validacao" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Sensor de cor × sensor de turbidez</h2><p>Para que serve: conferir se dá para confiar na turbidez. Usamos dois sensores diferentes; se os pontos formam uma linha subindo, os dois concordam e a medida é confiável.</p></div></div>
-        <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão: luz bloqueada × NTU"></svg></div>
-        <div class="chart-empty" id="scatter-empty" hidden><strong>Falta o sensor de turbidez (NTU)</strong><span>O gráfico aparece quando o sensor de turbidez enviar valores em NTU.</span></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Sensor de cor × sensor de turbidez</h2><p>Para que serve: ver se o sensor de turbidez acompanha o sensor de cor. Cada ponto é uma leitura: luz bloqueada (sensor de cor) × tensão do sensor de turbidez. Se os pontos formam uma linha, os dois reagem juntos à água; pontos espalhados = sensor de turbidez instável ou com deriva.</p></div></div>
+        <div class="chart-wrap" id="scatter-wrap"><svg id="scatter-chart" class="chart" role="img" aria-label="Dispersão: luz bloqueada × tensão do sensor de turbidez"></svg></div>
+        <div class="chart-empty" id="scatter-empty" hidden><strong>Sem leituras válidas do sensor de turbidez</strong><span>O gráfico aparece quando o sensor de turbidez enviar tensões sem defeito.</span></div>
       </section>
     </div>
 

@@ -15,7 +15,7 @@
         <tr><td>Cianobactérias</td><td style="white-space:normal">média de A(590) e A(630 nm) − A(555 nm): a ficocianina absorve o amarelo-laranja.</td></tr>
         <tr><td>Matéria orgânica</td><td style="white-space:normal">A(415 nm) − A(515 nm): água cor de chá absorve o violeta.</td></tr>
         <tr><td>Sedimentos</td><td style="white-space:normal">Absorção no infravermelho (~910 nm): só partículas bloqueiam essa luz.</td></tr>
-        <tr><td>Turbidez</td><td style="white-space:normal">NTU do sensor de turbidez (CONAMA 357/2005: até 40 NTU classe 1, até 100 NTU classes 2 e 3). Sem ele, a luz bloqueada em 590–630 nm.</td></tr>
+        <tr><td>Turbidez</td><td style="white-space:normal">Hoje o dashboard mostra a luz bloqueada em 590–630 nm pelo sensor de cor (índice relativo). O sensor de turbidez manda tensão e ADC crus; o NTU dele é uma estimativa pela curva do fabricante, com <b>calibração pendente</b>, e não é usado nas contas. Os limites da CONAMA 357/2005 (40 e 100 NTU) só são aplicados quando houver calibração validada com padrões de turbidez ou turbidímetro de referência.</td></tr>
         <tr><td>Semáforo dos índices</td><td style="white-space:normal">Abaixo de 0,05 baixo; de 0,05 a 0,20 moderado; acima de 0,20 alto. Os limites serão ajustados com as amostras de controle.</td></tr>
         <tr><td>Índice geral</td><td style="white-space:normal">100 × (1 − penalidade), com pesos 30% turbidez, 20% clorofila, 20% cianobactérias, 15% matéria orgânica e 15% sedimentos. 80–100 bom, 50–79 atenção, abaixo de 50 alerta.</td></tr>
       </tbody></table></div>

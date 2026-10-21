@@ -98,10 +98,42 @@ TENSAO_TRAVADA = 4.55  # V: acima disso o ADC do ESP32 travou no maximo (NTU nao
 
 
 def _ntu_valido(turbidez):
+    """NTU so entra nas contas quando a calibracao do sensor foi VALIDADA e a leitura
+    esta ok. Registros antigos (sem calibracao_status) tinham NTU pela curva do
+    fabricante, nunca validada: continuam guardados, mas como estimativa experimental."""
     ntu, tensao = turbidez.get("ntu"), turbidez.get("tensao_v")
     if ntu is None or (tensao is not None and tensao >= TENSAO_TRAVADA):
         return None
+    if turbidez.get("calibracao_status") != "validada" or turbidez.get("status", "ok") != "ok":
+        return None
     return ntu
+
+
+def _sensor_turbidez(turbidez):
+    """Estado do sensor de turbidez de uma leitura: dados crus, validacao e calibracao.
+    estado_leitura: invalida (defeito/fora da faixa), experimental (calibracao pendente)
+    ou calibrada. Firmware antigo nao mandava esses campos: vira "experimental"."""
+    antigo = "calibracao_status" not in turbidez
+    status = turbidez.get("status")
+    if antigo:
+        status = "ok" if turbidez.get("tensao_v") is not None else "sem_dado"
+    validada = turbidez.get("calibracao_status") == "validada"
+    if status != "ok":
+        estado = "invalida"
+    else:
+        estado = "calibrada" if validada and turbidez.get("ntu") is not None else "experimental"
+    return {
+        "tensao_v": turbidez.get("tensao_v"),
+        "adc_raw": turbidez.get("adc_raw"),
+        "desvio_mv": turbidez.get("desvio_mv"),
+        "status": status,
+        "estado_leitura": estado,
+        "calibracao_status": "validada" if validada else "pendente",
+        "calibracao_id": turbidez.get("calibracao_id") or ("firmware antigo (curva do fabricante)" if antigo else None),
+        # Firmware antigo mandava a estimativa no campo "ntu": aqui ela aparece como experimental.
+        "ntu_experimental": turbidez.get("ntu_experimental", turbidez.get("ntu") if antigo else None),
+        "ntu": turbidez.get("ntu") if validada else None,
+    }
 
 
 def _indices(leitura, metricas, branco=None):
@@ -126,7 +158,8 @@ def _indices(leitura, metricas, branco=None):
         "porcentagens": porcentagens,
         "contaminacao": contaminacao,
         "turbidez": luz_bloqueada,
-        "ntu": turbidez.get("ntu"),
+        "ntu": _ntu_valido(turbidez),
+        "sensor": _sensor_turbidez(turbidez),
         "absorbancia": absorb,
         "algas": _diferenca(absorb[7], absorb[5]),  # 680 - 590 nm: clorofila
         "cor": _diferenca(absorb[0], absorb[4]),  # 415 - 555 nm: materia organica
@@ -191,6 +224,10 @@ def _serie(lagoa):
             "porcentagens": [
                 _numero(_media([i["porcentagens"][c] for i in grupo])) for c in range(8)
             ],
+            # Tensao do sensor de turbidez (so leituras sem defeito; nada inventado nas lacunas).
+            "tensao_v": _numero(_media([
+                i["sensor"]["tensao_v"] for i in grupo if i["sensor"]["estado_leitura"] != "invalida"
+            ])),
         }
         for chave, grupo in sorted(blocos.items())
     ]
@@ -207,7 +244,7 @@ def _nivel(valor, faixa):
 
 
 COMO = {
-    "turbidez": "partículas: NTU do sensor de turbidez ou luz bloqueada em 590–630 nm",
+    "turbidez": "partículas: luz bloqueada em 590–630 nm pelo sensor de cor (NTU só com calibração validada)",
     "clorofila": "absorção extra no vermelho 680 nm em relação ao amarelo 590 nm",
     "cianobacterias": "absorção extra no laranja 630 nm (ficocianina)",
     "materia_organica": "absorção extra no violeta 415 nm em relação ao verde 555 nm (cor de chá)",
@@ -465,6 +502,8 @@ def _dados_painel(data_selecionada, leituras, metricas):
                 "turbidez": _numero(indices[leitura.pk]["turbidez"]),
                 "turbidez_classe": (leitura.diagnostico or {}).get("turbidez"),
                 **_colunas_qualidade(indices[leitura.pk]),
+                "tensao_v": _numero(indices[leitura.pk]["sensor"]["tensao_v"]),
+                "sensor_estado": indices[leitura.pk]["sensor"]["estado_leitura"],
                 "estado": _estado(leitura, indices[leitura.pk]),
                 "saturado": leitura.saturado,
             }
@@ -477,16 +516,18 @@ def _dados_painel(data_selecionada, leituras, metricas):
             if ponto["turbidez"] is not None
         ],
         "serie": serie,
-        # Validacao: sensor de cor x sensor de turbidez, leitura a leitura.
+        # Validacao: sensor de cor (luz bloqueada) x tensao do sensor de turbidez.
         "comparacao": [
             {
                 "hora": timezone.localtime(leitura.medido_em).strftime("%H:%M"),
                 "turbidez": _numero(i["turbidez"]),
-                "ntu": _numero(i["ntu"]),
+                "tensao_v": _numero(i["sensor"]["tensao_v"]),
             }
             for leitura, i in validas[-300:]
-            if i["turbidez"] is not None and i["ntu"] is not None
+            if i["turbidez"] is not None and i["sensor"]["tensao_v"] is not None
+            and i["sensor"]["estado_leitura"] != "invalida"
         ],
+        "sensor_turbidez": _diagnostico_sensor(leituras[-1], indices[leituras[-1].pk]) if leituras else None,
         "amostra_atual": amostra_atual,
         "qualidade": qualidade_atual,
         "comparacao_amostras": _comparacao_amostras(atual_indices if atual else None, suja_q),
@@ -503,6 +544,15 @@ def _dados_painel(data_selecionada, leituras, metricas):
         "turbidez": turbidez,
         "espectro": espectro,
         "live": live,
+    }
+
+
+def _diagnostico_sensor(leitura, indices):
+    """Painel "Diagnostico do sensor": ultima leitura recebida, como chegou."""
+    return {
+        **indices["sensor"],
+        "hora": timezone.localtime(leitura.medido_em).strftime("%d/%m/%Y %H:%M:%S"),
+        "firmware_version": (leitura.dados_originais or {}).get("firmware_version") or "não informado (firmware antigo)",
     }
 
 
@@ -552,6 +602,9 @@ def historico(request):
             "ponto_nome": qualidade.nome_amostra(ponto, "amostra"),
             "medicoes": len(grupo),
             "ntu": _numero(_media([q["ntu"] for _, q in grupo])),
+            "tensao_v": _numero(_media([
+                i["sensor"]["tensao_v"] for i, _ in grupo if i["sensor"]["estado_leitura"] != "invalida"
+            ])),
             "turbidez": _numero(_media([i["turbidez"] for i, _ in grupo])),
             "clorofila": _numero(_media([q["clorofila"] for _, q in grupo])),
             "cianobacterias": _numero(_media([q["cianobacterias"] for _, q in grupo])),

@@ -217,7 +217,7 @@ def nivel_texto(v):
 
 def classe_texto(ntu):
     if ntu is None:
-        return "Sem leitura de NTU"
+        return "Calibração em NTU pendente"
     return "Compatível com classe 1" if ntu <= 40 else "Compatível com classes 2 e 3" if ntu <= 100 else "Fora dos limites CONAMA"
 
 
@@ -259,7 +259,7 @@ def conclusao_amostra(nome, ntu, luz, ix, ref, st):
     if ntu is not None:
         turb = f"turbidez de {ntu:.1f} NTU ({classe_texto(ntu).lower()})".replace(".", ",")
     elif luz is not None:
-        turb = f"turbidez de {luz:.0f}% de luz bloqueada (sem NTU)"
+        turb = f"turbidez de {luz:.0f}% de luz bloqueada pelo sensor de cor (NTU com calibração pendente)"
     else:
         turb = "turbidez sem leitura"
     forca = {"alto": "assinatura forte de", "moderado": "assinatura moderada de", "baixo": "assinatura fraca de"}
