@@ -39,5 +39,10 @@
         <tbody id="readings-body"></tbody></table>
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>
+      <nav class="table-pagination" aria-label="Paginação dos registros">
+        <button class="pagination-button" id="readings-prev" type="button" aria-label="Página anterior" disabled>Anterior</button>
+        <span id="readings-page" aria-live="polite">Página 1 de 1</span>
+        <button class="pagination-button" id="readings-next" type="button" aria-label="Próxima página" disabled>Próxima</button>
+      </nav>
     </section>
 {% endblock %}

@@ -197,13 +197,17 @@ button,input,select{font:inherit;color:inherit}
 .state-ok{color:var(--green);background:rgba(31,157,116,.1)}.state-ok i{background:var(--green)}
 .state-warning{color:var(--amber);background:rgba(209,154,43,.14)}.state-warning i{background:var(--amber)}
 .empty-row{padding:28px!important;text-align:center;font-style:italic}.no-results{padding:22px 26px;color:var(--muted);font-size:13px}
+.table-pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 26px 18px;font-size:13px;color:var(--muted)}
+.pagination-button{height:36px;padding:0 14px;color:var(--deep);font-weight:600;background:var(--surface-raised);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.pagination-button:hover:not(:disabled){background:rgba(25,181,200,.1)}
+.pagination-button:disabled{opacity:.5;cursor:not-allowed}
 .page-footer{display:flex;justify-content:space-between;gap:12px;padding:28px 4px 0;font-size:13px;color:var(--muted);flex-wrap:wrap}.page-footer strong{color:var(--ink);font-family:var(--display)}
 
 @media(max-width:1000px){.two-col{grid-template-columns:1fr}.sample-metrics{grid-template-columns:repeat(3,1fr)}.gauge{display:none}}
 @media(max-width:760px){
   .nav{gap:8px;padding:6px 8px 6px 12px}.brand strong{display:none}.nav-links{overflow-x:auto;scrollbar-width:none}.nav-link{padding:7px 10px;font-size:12px}.nav-status span{display:none}
   .hero-stick{grid-template-columns:1fr;padding-top:84px}.hero-visual{display:none}.hero-description{font-size:15px}
-  .page-content{width:calc(100% - 28px)}.sample-metrics{grid-template-columns:repeat(2,1fr)}.panel-heading{padding:18px 18px 10px}.chart-wrap{padding:8px 8px 14px}.table-toolbar{padding:0 18px 14px}
+  .page-content{width:calc(100% - 28px)}.sample-metrics{grid-template-columns:repeat(2,1fr)}.panel-heading{padding:18px 18px 10px}.chart-wrap{padding:8px 8px 14px}.table-toolbar{padding:0 18px 14px}.table-pagination{padding:12px 18px 18px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
