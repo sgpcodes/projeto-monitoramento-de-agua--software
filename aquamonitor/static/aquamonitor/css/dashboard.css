@@ -2,7 +2,7 @@
 :root{
   --display:"Bricolage Grotesque","Inter",system-ui,sans-serif;
   --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --ink:#0d3b4f; --soft:#46707f; --muted:#7a97a2;
+  --ink:#082c3b; --soft:#244f5f; --muted:#3f6574;
   --aqua:#19b5c8; --deep:#0a7c99; --foam:#f2fcfd; --line:rgba(16,110,135,.13);
   --green:#1f9d74; --amber:#a8700f; --rose:#c4505f;
   --glass:rgba(255,255,255,.72); --surface:rgba(255,255,255,.8);
@@ -14,7 +14,7 @@
 }
 [data-theme="dark"]{
   color-scheme:dark;
-  --ink:#e0f2f5; --soft:#a9c7d0; --muted:#829fa8;
+  --ink:#f2fbfd; --soft:#cfe4ea; --muted:#adc8d0;
   --deep:#67d4e2; --foam:#0b171d; --line:rgba(130,195,207,.18);
   --amber:#e7b952; --glass:rgba(17,36,44,.84); --surface:rgba(20,42,50,.82);
   --surface-raised:rgba(20,42,50,.9); --table-head:rgba(44,78,87,.48);
@@ -196,3 +196,21 @@ button,input,select{font:inherit;color:inherit}
 .spectrum-legend span{font-size:14px}
 /* Ondas paradas e cobrindo a largura toda */
 .waves path{animation:none!important}
+/* Letras maiores e mais legiveis */
+.nav-link{font-size:17px}.brand strong{font-size:19px}
+.nav-status{font-size:14px}.nav-status strong{font-size:14px}.theme-toggle{font-size:14px}
+.eyebrow{font-size:15px}.hero-description{font-size:19px;max-width:600px}.scroll-hint{font-size:15px}
+.date-filter label{font-size:15px}
+.kpi-label{font-size:18px}.kpi-note,.kpi-badge{font-size:15px}.kpi-value{font-size:clamp(40px,4.4vw,56px)}
+.panel-kicker{font-size:16px}.panel-heading h2{font-size:27px}
+.panel-heading p:not(.panel-kicker){font-size:17px;line-height:1.55}
+.sample-head h2{font-size:27px}.sample-time{font-size:16px}
+.sample-metric span{font-size:16px}.sample-metric small{font-size:15px}.sample-metric strong{font-size:clamp(20px,1.9vw,26px)}
+.sample-summary{font-size:18px}.sync{font-size:16px}
+.seg-btn{font-size:15px}.select-label{font-size:15px}
+.chart .axis-text{font-size:15px;fill:var(--soft)}.chart .axis-label{font-size:15px;fill:var(--ink)}
+.readings-table th{font-size:15px;color:var(--soft)}.readings-table td{font-size:16px;color:var(--ink)}
+.type-badge,.state-badge{font-size:15px}.spectrum-legend span{font-size:15px}
+.page-footer{font-size:15px}#tip{font-size:14px;max-width:320px}
+/* Ondas do topo: um pouco mais altas e passando das bordas */
+.waves{height:220px;left:-3%;width:106%}
