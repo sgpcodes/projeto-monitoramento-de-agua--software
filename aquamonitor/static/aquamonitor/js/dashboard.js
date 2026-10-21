@@ -711,9 +711,10 @@
   carregarHistorico(); setInterval(carregarHistorico, 10 * 60 * 1000);
 
   // Pagina Historico: registros recebidos no dia escolhido.
-  async function carregarRegistros() {
+  async function carregarRegistros(resetPage = false) {
     const campo = $("registros-data"), url = shell?.dataset.dashboardUrl;
     if (!campo || !url || document.hidden) return;
+    if (resetPage) currentReadingsPage = 1;
     try {
       const u = new URL(url, location.href); u.searchParams.set("data", campo.value);
       const r = await fetch(u, { cache: "no-store", headers: { Accept: "application/json" } });
@@ -721,11 +722,14 @@
       const d = await r.json(); updateSampleFilter(d.leituras || []); renderReadings(d);
     } catch (e) { console.error("Não foi possível carregar os registros.", e); }
   }
-  $("registros-data")?.addEventListener("change", carregarRegistros);
-  carregarRegistros(); setInterval(carregarRegistros, 60 * 1000);
+  $("registros-data")?.addEventListener("change", () => carregarRegistros(true));
 
   /* ---------- tabelas ---------- */
+  const READINGS_PER_PAGE = 10;
   let rows = [];
+  let filteredRows = [];
+  let currentReadingsPage = 1;
+  carregarRegistros(); setInterval(carregarRegistros, 60 * 1000);
   function renderReadings(data) {
     const body = $("readings-body"); if (!body) return;
     body.replaceChildren();
@@ -756,16 +760,24 @@
     rows = [...body.querySelectorAll("tr:not([data-empty])")];
     filterReadings();
   }
-  function filterReadings() {
+  function filterReadings(resetPage = false) {
+    if (resetPage) currentReadingsPage = 1;
     const s = $("reading-search")?.value.trim().toLocaleLowerCase("pt-BR") ?? "";
     const sm = $("sample-filter")?.value.toLocaleLowerCase("pt-BR") ?? "", ty = $("type-filter")?.value ?? "";
-    let n = 0;
-    rows.forEach((r) => {
+    filteredRows = rows.filter((r) => {
       const ok = (r.dataset.sample || "").includes(s) && (!sm || r.dataset.sample === sm) && (!ty || r.dataset.type === ty);
-      r.hidden = !ok; if (ok) n++;
+      return ok;
     });
-    if ($("visible-count")) $("visible-count").textContent = String(n);
-    if ($("no-results")) $("no-results").hidden = n !== 0 || rows.length === 0;
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / READINGS_PER_PAGE));
+    currentReadingsPage = Math.min(currentReadingsPage, totalPages);
+    rows.forEach((r) => { r.hidden = true; });
+    const start = (currentReadingsPage - 1) * READINGS_PER_PAGE;
+    filteredRows.slice(start, start + READINGS_PER_PAGE).forEach((r) => { r.hidden = false; });
+    if ($("visible-count")) $("visible-count").textContent = String(filteredRows.length);
+    if ($("no-results")) $("no-results").hidden = filteredRows.length !== 0 || rows.length === 0;
+    if ($("readings-page")) $("readings-page").textContent = `Página ${currentReadingsPage} de ${totalPages}`;
+    if ($("readings-prev")) $("readings-prev").disabled = currentReadingsPage <= 1;
+    if ($("readings-next")) $("readings-next").disabled = currentReadingsPage >= totalPages;
   }
   function updateSampleFilter(list) {
     const sel = $("sample-filter"); if (!sel) return;
@@ -828,14 +840,21 @@
     ultimosDados = data;
     firstRender = false;
   }
-  $("reading-search")?.addEventListener("input", filterReadings);
-  $("sample-filter")?.addEventListener("change", filterReadings);
-  $("type-filter")?.addEventListener("change", filterReadings);
+  $("reading-search")?.addEventListener("input", () => filterReadings(true));
+  $("sample-filter")?.addEventListener("change", () => filterReadings(true));
+  $("type-filter")?.addEventListener("change", () => filterReadings(true));
+  $("readings-prev")?.addEventListener("click", () => {
+    if (currentReadingsPage > 1) { currentReadingsPage--; filterReadings(); }
+  });
+  $("readings-next")?.addEventListener("click", () => {
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / READINGS_PER_PAGE));
+    if (currentReadingsPage < totalPages) { currentReadingsPage++; filterReadings(); }
+  });
   $("export-csv")?.addEventListener("click", () => {
-    const vis = rows.filter((r) => !r.hidden); if (!vis.length) return;
+    if (!filteredRows.length) return;
     const heads = [...document.querySelectorAll("#readings thead th")].map((c) => c.textContent.trim());
     const esc = (v) => `"${v.replaceAll('"', '""')}"`;
-    const csv = [heads, ...vis.map((r) => [...r.cells].map((c) => c.textContent.trim()))].map((l) => l.map(esc).join(",")).join("\r\n");
+    const csv = [heads, ...filteredRows.map((r) => [...r.cells].map((c) => c.textContent.trim()))].map((l) => l.map(esc).join(",")).join("\r\n");
     const a = document.createElement("a"), url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     a.href = url; a.download = `aquamonitor-${shell?.dataset.selectedDate ?? "leituras"}.csv`;
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
