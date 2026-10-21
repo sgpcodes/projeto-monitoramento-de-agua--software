@@ -59,6 +59,18 @@
       <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
     </section>
 
+    <section class="sample-analysis" id="agora-qualidade" aria-label="Qualidade da lagoa agora" data-reveal>
+      <div class="sample-head">
+        <div><p class="panel-kicker">Lagoa agora · última leitura válida</p><h2>Como está a água neste momento</h2></div>
+        <span class="sample-time">Medida às <strong id="ag-hora">—</strong></span>
+      </div>
+      <p class="sample-summary" id="ag-conclusao">Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.</p>
+      <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+        <article class="sample-metric"><span>Turbidez</span><strong id="ag-ntu">—</strong><svg id="ag-gauge" viewBox="-14 -14 228 132" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:300px"></svg><span class="state-badge state-ok" id="ag-classe" style="justify-self:start;align-self:start"><i></i>—</span></article>
+        <article class="sample-metric"><span>Índice geral de qualidade</span><strong id="ag-iq" style="font-size:44px">—</strong><svg id="ag-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:110px"></svg><span class="state-badge state-ok" id="ag-status" style="justify-self:start;align-self:start"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
+      </div>
+    </section>
+
     <section class="sync" id="sync-notice" aria-live="polite" data-reveal>
       <span class="sync-badge" id="sync-badge">Sincronização</span>
       <span><span id="sync-message">Leituras reais do ESP32 aparecem automaticamente aqui.</span> Última consulta ao banco: <strong id="data-updated">aguardando…</strong></span>
