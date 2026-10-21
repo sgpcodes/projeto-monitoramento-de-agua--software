@@ -1,0 +1,62 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#eefbfd">
+<meta name="description" content="AquaMonitor: qualidade da água medida com luz. ESP32 + AS7341. Universidade de Vassouras, Engenharia de Software, Maricá.">
+<title>AquaMonitor · {% block titulo %}Agora{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'aquamonitor/css/dashboard.css' %}">
+<script src="{% static 'aquamonitor/js/dashboard.js' %}" defer></script>
+</head>
+<body>
+<div class="depth-bg" aria-hidden="true"></div>
+<canvas id="bubbles" aria-hidden="true"></canvas>
+<div class="progress" aria-hidden="true"></div>
+<div class="gauge" aria-hidden="true"><span class="gauge-track"><i></i></span><b id="gauge-m">0 m</b></div>
+<div id="tip" role="tooltip" hidden></div>
+
+<div class="app-shell"
+     data-health-url="{% url 'health' %}"
+     data-dashboard-url="{% url 'dashboard_data' %}"
+     data-historico-url="{% url 'historico' %}"
+     data-amostras-url="{% url 'amostras' %}"
+     data-selected-date="{{ data_selecionada|date:'Y-m-d' }}">
+
+<header class="nav">
+  <a class="brand" href="{% url 'dashboard' %}" aria-label="AquaMonitor, início">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="currentColor"/></svg>
+    <strong>AquaMonitor</strong>
+  </a>
+  {% with pagina=request.resolver_match.url_name %}
+  <nav class="nav-links" aria-label="Páginas">
+    <a class="nav-link{% if pagina == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}">Agora</a>
+    <a class="nav-link{% if pagina == 'pagina_amostras' %} is-active{% endif %}" href="{% url 'pagina_amostras' %}">Amostras</a>
+    <a class="nav-link{% if pagina == 'pagina_historico' %} is-active{% endif %}" href="{% url 'pagina_historico' %}">Histórico</a>
+    <a class="nav-link{% if pagina == 'pagina_guia' %} is-active{% endif %}" href="{% url 'pagina_guia' %}">Guia</a>
+  </nav>
+  {% endwith %}
+  <div class="nav-status" aria-live="polite">
+    <span class="status-dot is-offline" id="health-indicator"></span>
+    <span id="health-label">Verificando conexão…</span>
+    <strong id="live-clock">--:--:--</strong>
+  </div>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Ativar modo escuro" aria-pressed="false">Escuro</button>
+</header>
+
+<main id="overview">
+{% block hero %}  <div style="height:104px" aria-hidden="true"></div>
+{% endblock %}
+  <div class="page-content">
+{% block conteudo %}{% endblock %}
+    <footer class="page-footer"><strong>AquaMonitor</strong><span>Universidade de Vassouras, Engenharia de Software. Maricá, outubro de 2026.</span></footer>
+  </div>
+</main>
+</div>
+{% block dados %}{% endblock %}
+</body>
+</html>

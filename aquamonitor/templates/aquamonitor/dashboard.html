@@ -1,56 +1,7 @@
+{% extends "aquamonitor/base.html" %}
 {% load static %}
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#eefbfd">
-<meta name="description" content="AquaMonitor: qualidade da água medida com luz. ESP32 + AS7341. Universidade de Vassouras, Engenharia de Software, Maricá.">
-<title>AquaMonitor · Visão geral</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'aquamonitor/css/dashboard.css' %}">
-<script src="{% static 'aquamonitor/js/dashboard.js' %}" defer></script>
-</head>
-<body>
-<div class="depth-bg" aria-hidden="true"></div>
-<canvas id="bubbles" aria-hidden="true"></canvas>
-<div class="progress" aria-hidden="true"></div>
-<div class="gauge" aria-hidden="true"><span class="gauge-track"><i></i></span><b id="gauge-m">0 m</b></div>
-<div id="tip" role="tooltip" hidden></div>
-
-<div class="app-shell"
-     data-health-url="{% url 'health' %}"
-     data-dashboard-url="{% url 'dashboard_data' %}"
-     data-historico-url="{% url 'historico' %}"
-     data-amostras-url="{% url 'amostras' %}"
-     data-selected-date="{{ data_selecionada|date:'Y-m-d' }}">
-
-<header class="nav">
-  <a class="brand" href="{% url 'dashboard' %}" aria-label="AquaMonitor, início">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="currentColor"/></svg>
-    <strong>AquaMonitor</strong>
-  </a>
-  <nav class="nav-links" aria-label="Navegação principal">
-    <a class="nav-link is-active" href="#overview">Visão geral</a>
-    <a class="nav-link" href="#espectro">Espectro</a>
-    <a class="nav-link" href="#assinatura">Análise</a>
-    <a class="nav-link" href="#comparacao">Comparação</a>
-    <a class="nav-link" href="#historico">Histórico</a>
-    <a class="nav-link" href="#evolucao">Evolução</a>
-    <a class="nav-link" href="#coletas">Coletas</a>
-    <a class="nav-link" href="#readings">Leituras</a>
-  </nav>
-  <div class="nav-status" aria-live="polite">
-    <span class="status-dot is-offline" id="health-indicator"></span>
-    <span id="health-label">Verificando conexão…</span>
-    <strong id="live-clock">--:--:--</strong>
-  </div>
-  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Ativar modo escuro" aria-pressed="false">Escuro</button>
-</header>
-
-<main id="overview">
+{% block titulo %}Agora{% endblock %}
+{% block hero %}
   <section class="hero" aria-label="Apresentação do projeto">
     <div class="hero-stick">
       <div class="hero-copy">
@@ -77,7 +28,8 @@
     </svg>
   </section>
 
-  <div class="page-content">
+{% endblock %}
+{% block conteudo %}
     <section class="kpi-grid" aria-label="Resumo da coleta">
       <article class="kpi-card" data-reveal><span class="kpi-label">Total de leituras</span><strong class="kpi-value" data-count="{{ total_leituras|default:0 }}">{{ total_leituras }}</strong><span class="kpi-note">registros nesta coleta</span></article>
       <article class="kpi-card" data-reveal><span class="kpi-label">Amostras analisadas</span><strong class="kpi-value" data-count="{{ total_amostras|default:0 }}">{{ total_amostras }}</strong><span class="kpi-note">amostras distintas</span></article>
@@ -86,27 +38,11 @@
       <article class="kpi-card" data-reveal><span class="kpi-label">Contaminação</span><strong class="kpi-value" id="kpi-contaminacao">—</strong><span class="kpi-badge" id="kpi-contaminacao-badge">—</span></article>
     </section>
 
-    <section class="sample-analysis" id="sample-analysis" aria-label="Amostra selecionada" data-reveal>
-      <div class="sample-head">
-        <div><p class="panel-kicker">Amostra · média de 3 repetições</p><h2 id="am-nome">Leitura e diagnóstico</h2></div>
-        <div class="table-toolbar" style="padding:0;border:0">
-          <label class="select-label" for="am-select">Amostra<select id="am-select"></select></label>
-          <span class="sample-time">Leitura <strong id="am-leitura">—</strong></span>
-        </div>
-      </div>
-      <p class="sample-summary" id="am-conclusao">Carregando as amostras…</p>
-      <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-        <article class="sample-metric"><span>Turbidez</span><strong id="am-ntu">—</strong><svg id="am-gauge" viewBox="-14 0 228 118" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:260px"></svg><span class="state-badge state-ok" id="am-classe"><i></i>—</span></article>
-        <article class="sample-metric"><span>Índice geral de qualidade</span><strong id="am-iq">—</strong><svg id="am-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:90px"></svg><span class="state-badge state-ok" id="am-status"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
-        <article class="sample-metric"><span>Cor da amostra</span><svg id="am-swatch" viewBox="0 0 72 72" aria-hidden="true" style="width:64px"></svg><strong id="am-cor">—</strong><small id="am-cor-info">—</small></article>
-        <article class="sample-metric sample-contamination"><span>Alerta principal</span><small id="am-alerta" style="font-size:14px;line-height:1.45">—</small></article>
-      </div>
-    </section>
-
     <section class="sync" id="sync-notice" aria-live="polite" data-reveal>
       <span class="sync-badge" id="sync-badge">Sincronização</span>
       <span><span id="sync-message">Leituras reais do ESP32 aparecem automaticamente aqui.</span> Última consulta ao banco: <strong id="data-updated">aguardando…</strong></span>
     </section>
+
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
         <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">% de luz que passou em cada cor, comparada com a água limpa (100%). Queda por igual em todas as cores = partículas (turbidez); queda maior no violeta 415 nm = matéria orgânica; queda no vermelho 680 nm = algas.</p></div>
@@ -123,99 +59,7 @@
       <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
       <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
     </section>
-    <section class="panel" id="assinatura" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Assinatura espectral</p><h2>Assinatura espectral</h2><p>Absorbância por canal do AS7341, A = −log10(amostra / branco). Picos mostram o que está presente na água.</p></div>
-        <div class="spectrum-legend" id="assin-legenda"></div></div>
-      <div class="chart-wrap tall" id="assin-wrap"><svg id="assin-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
-      <div class="chart-empty" id="assin-empty" hidden><strong>Aguardando amostras</strong><span>Grave a água limpa (BOOT → 1) e meça uma amostra com nome (ex.: n lagoa_p1).</span></div>
-    </section>
 
-    <section class="panel" id="indicadores" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Indicadores</p><h2>O que esta amostra indica</h2><p>Índices de absorbância da amostra selecionada. A barra vai de 0 a 0,40; abaixo de 0,05 baixo, até 0,20 moderado, acima alto.</p></div></div>
-      <div class="sample-metrics" id="indicadores-body" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
-    </section>
-
-    <div class="two-col" id="comparacao">
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Comparação entre amostras</h2><p>Intensidade relativa (0 a 1): índices divididos por 0,40 e turbidez por 150 NTU. Mostra onde a lagoa fica entre a água boa e a podre.</p></div>
-          <div class="spectrum-legend"><span><i style="--c:#2f6fd0"></i>Algas</span><span><i style="--c:#ed7845"></i>Cianobactérias</span><span><i style="--c:#21b98a"></i>Matéria orgânica</span><span><i style="--c:#8452c6"></i>Sedimentos</span><span><i style="--c:#d6a417"></i>Turbidez</span></div></div>
-        <div class="chart-wrap" id="cmp-wrap"><svg id="cmp-chart" class="chart" role="img" aria-label="Comparação entre amostras"></svg></div>
-        <div class="chart-empty" id="cmp-empty" hidden><strong>Poucas amostras para comparar</strong><span>Meça a água boa (n agua_boa), a água podre (BOOT → 2) e os pontos da lagoa (n lagoa_p1...).</span></div>
-      </section>
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Semelhança com as referências</h2><p>Quanto o espectro da amostra se parece com cada referência: 100 · e<sup>−d/0,4</sup>, sendo d a distância euclidiana entre os 8 canais de absorbância.</p></div></div>
-        <div class="chart-wrap" id="sim-wrap"><svg id="sim-chart" class="chart" role="img" aria-label="Semelhança com as referências"></svg></div>
-        <div class="chart-empty" id="sim-empty" hidden><strong>Sem referências</strong><span>O branco é a referência do cálculo e não é comparado. Referências: n agua_boa, BOOT → 2, n ref_cha, n ref_terra, n ref_algas.</span></div>
-        <p class="sample-summary" id="sim-concl" style="margin:0 28px 24px"></p>
-      </section>
-    </div>
-
-    <section class="panel" id="validacao-diluicao" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Validação do sensor – série de diluição</h2><p>Absorbância no canal de maior absorção de cada corante contra a concentração. R² próximo de 1 comprova a relação linear prevista pela lei de Beer-Lambert e valida o equipamento.</p></div></div>
-      <div class="chart-wrap" id="dil-wrap"><svg id="dil-chart" class="chart" role="img" aria-label="Série de diluição"></svg></div>
-      <div class="chart-empty" id="dil-empty" hidden><strong>Ainda não há série de diluição</strong><span>Meça pelo menos 3 concentrações de cada corante: n dil_amarelo_25 → m, n dil_amarelo_50 → m, n dil_amarelo_100 → m.</span></div>
-    </section>
-
-    <section class="panel" id="historico" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Histórico dos pontos da lagoa</h2><p>Últimos 30 dias de leituras diárias. Linhas tracejadas: limites de turbidez da CONAMA 357/2005 para águas doces.</p></div>
-        <div class="spectrum-legend" id="hist-legenda"></div></div>
-      <div class="two-col" style="margin:0">
-        <div><p class="panel-kicker" id="hist-t-titulo" style="margin:0 28px">Turbidez (NTU)</p>
-          <div class="chart-wrap" id="hist-t-wrap"><svg id="hist-t-chart" class="chart" role="img" aria-label="Turbidez por dia"></svg></div>
-          <div class="chart-empty" id="hist-t-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
-        <div><p class="panel-kicker" style="margin:0 28px">Índices de clorofila (contínua) e matéria orgânica (tracejada)</p>
-          <div class="chart-wrap" id="hist-i-wrap"><svg id="hist-i-chart" class="chart" role="img" aria-label="Índices por dia"></svg></div>
-          <div class="chart-empty" id="hist-i-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
-      </div>
-    </section>
-
-    <section class="panel" id="amostras-tabela" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Amostras</h2><p>Médias de 3 repetições por amostra. Clique numa linha para selecioná-la; clique no título da coluna para ordenar.</p></div></div>
-      <div class="table-toolbar"><label class="search-box" for="am-busca"><input id="am-busca" type="search" placeholder="Buscar amostra ou status" autocomplete="off"></label></div>
-      <div class="table-scroll"><table class="readings-table" id="am-tabela"><thead><tr>
-        <th data-k="nome">Amostra</th><th data-k="leitura">Data</th><th data-k="turbidez_ntu">Turbidez (NTU)</th><th data-k="turbidez_dp">DP turbidez</th>
-        <th data-k="clorofila">Clorofila</th><th data-k="cianobacterias">Cianobact.</th><th data-k="materia_organica">M. orgânica</th><th data-k="sedimentos">Sedimentos</th>
-        <th data-k="abs_dp">DP absorb.</th><th data-k="indice_geral">Índice geral</th><th data-k="status">Status</th></tr></thead><tbody id="am-tabela-body"></tbody></table></div>
-    </section>
-
-    <section class="panel" id="evolucao-espectral" data-reveal>
-      <div class="panel-heading">
-        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>% de luz que passou em cada cor, média a cada 10 minutos. Todas as linhas caindo juntas = turbidez; só o vermelho caindo = algas; só o violeta caindo = matéria orgânica.</p></div>
-        <div>
-        <div class="spectrum-legend" aria-label="Canais espectrais">
-          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
-        </div>
-        <div class="segmented" role="tablist" aria-label="Período" id="periodo-espectral">
-          <button type="button" role="tab" class="seg-btn" data-horas="1" aria-selected="false">1h</button>
-          <button type="button" role="tab" class="seg-btn" data-horas="6" aria-selected="false">6h</button>
-          <button type="button" role="tab" class="seg-btn" data-horas="12" aria-selected="false">12h</button>
-          <button type="button" role="tab" class="seg-btn is-active" data-horas="24" aria-selected="true">24h</button>
-        </div>
-        </div>
-      </div>
-      <div class="chart-wrap tall" id="spectral-time-wrap"><svg id="spectral-time-chart" class="chart" role="img" aria-label="Evolução de cada cor ao longo do tempo"></svg></div>
-      <div class="chart-empty" id="spectral-time-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
-    </section>
-    <div class="two-col">
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
-        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Observação</th></tr></thead><tbody id="observacoes-body"></tbody></table></div>
-      </section>
-      <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Regiões espectrais</h2><p>O que cada canal do AS7341 indica na água.</p></div></div>
-        <div class="table-scroll"><table class="readings-table"><thead><tr><th>Canal</th><th>λ (nm)</th><th>Cor</th><th>O que indica na água</th></tr></thead><tbody>
-          <tr><td>F1</td><td>415</td><td>Violeta</td><td style="white-space:normal">Matéria orgânica dissolvida (água amarelada) absorve forte aqui</td></tr>
-          <tr><td>F2</td><td>445</td><td>Azul</td><td style="white-space:normal">Clorofila (pico azul) e matéria orgânica</td></tr>
-          <tr><td>F3</td><td>480</td><td>Ciano</td><td style="white-space:normal">Carotenoides (pigmentos de algas)</td></tr>
-          <tr><td>F4</td><td>515</td><td>Verde</td><td style="white-space:normal">Pouca absorção dos pigmentos: mostra mais as partículas</td></tr>
-          <tr><td>F5</td><td>555</td><td>Verde-amarelo</td><td style="white-space:normal">Referência para a cor (comparada com o violeta)</td></tr>
-          <tr><td>F6</td><td>590</td><td>Amarelo</td><td style="white-space:normal">Partículas (turbidez) e referência para as algas</td></tr>
-          <tr><td>F7</td><td>630</td><td>Laranja</td><td style="white-space:normal">Partículas e ficocianina (cianobactérias)</td></tr>
-          <tr><td>F8</td><td>680</td><td>Vermelho</td><td style="white-space:normal">Clorofila-a (algas)</td></tr>
-          <tr><td>NIR</td><td>~910</td><td>Infravermelho</td><td style="white-space:normal">Quase só a luz da lanterna: serve para conferir a iluminação</td></tr>
-        </tbody></table></div>
-      </section>
-    </div>
     <div class="two-col">
       <section class="panel" id="evolucao" data-reveal>
         <div class="panel-heading"><div><p class="panel-kicker">Evolução</p><h2>Ao longo do dia</h2><p id="series-description">Água da lagoa, média a cada 10 minutos. As linhas tracejadas marcam as faixas de classificação.</p></div>
@@ -235,6 +79,25 @@
       </section>
     </div>
 
+    <section class="panel" id="evolucao-espectral" data-reveal>
+      <div class="panel-heading">
+        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>% de luz que passou em cada cor, média a cada 10 minutos. Todas as linhas caindo juntas = turbidez; só o vermelho caindo = algas; só o violeta caindo = matéria orgânica.</p></div>
+        <div>
+        <div class="spectrum-legend" aria-label="Canais espectrais">
+          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
+        </div>
+        <div class="segmented" role="tablist" aria-label="Período" id="periodo-espectral">
+          <button type="button" role="tab" class="seg-btn" data-horas="1" aria-selected="false">1h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="6" aria-selected="false">6h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="12" aria-selected="false">12h</button>
+          <button type="button" role="tab" class="seg-btn is-active" data-horas="24" aria-selected="true">24h</button>
+        </div>
+        </div>
+      </div>
+      <div class="chart-wrap tall" id="spectral-time-wrap"><svg id="spectral-time-chart" class="chart" role="img" aria-label="Evolução de cada cor ao longo do tempo"></svg></div>
+      <div class="chart-empty" id="spectral-time-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
+    </section>
+
     <div class="two-col">
       <section class="panel" data-reveal>
         <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Comparativo de canais</h2><p id="canais-description">Contagem crua de cada canal na última leitura; a barrinha é o desvio padrão. Serve para conferir a lanterna e o sensor.</p></div>
@@ -252,9 +115,9 @@
       </section>
     </div>
 
-    <section class="panel" id="coletas" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Transparência (Secchi), chuva, temperatura, observação e foto.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
-      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Data</th><th>Ponto</th><th>Secchi</th><th>Chuva 48h</th><th>Temp.</th><th>Observação</th><th>Foto</th></tr></thead><tbody id="coletas-body"></tbody></table></div>
+    <section class="panel" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Principais observações</h2><p>Geradas automaticamente a partir dos dados de hoje.</p></div></div>
+      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Observação</th></tr></thead><tbody id="observacoes-body"></tbody></table></div>
     </section>
 
     <section class="panel" id="readings" data-reveal>
@@ -273,30 +136,5 @@
         <p class="no-results" id="no-results" hidden>Nenhuma leitura corresponde aos filtros.</p>
       </div>
     </section>
-
-    <section class="panel" id="interpretar" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Guia</p><h2>Como interpretar</h2><p>Cada substância absorve luz em comprimentos de onda específicos. O sensor mede quanta luz atravessa a amostra em 8 cores e compara com a água limpa gravada no aparelho (o "branco").</p></div></div>
-      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Conceito</th><th>Como funciona</th></tr></thead><tbody>
-        <tr><td>Absorbância</td><td style="white-space:normal">A = −log10(amostra ÷ água limpa). A = 0: igual à água limpa. A = 1: só 10% da luz passou.</td></tr>
-        <tr><td>Clorofila (algas)</td><td style="white-space:normal">A(680 nm) − A(590 nm): a clorofila absorve o vermelho.</td></tr>
-        <tr><td>Cianobactérias</td><td style="white-space:normal">A(630 nm) − média de A(590) e A(680): a ficocianina absorve o laranja.</td></tr>
-        <tr><td>Matéria orgânica</td><td style="white-space:normal">A(415 nm) − A(555 nm): água cor de chá absorve o violeta.</td></tr>
-        <tr><td>Sedimentos</td><td style="white-space:normal">Absorção no infravermelho (~910 nm): só partículas bloqueiam essa luz.</td></tr>
-        <tr><td>Turbidez</td><td style="white-space:normal">NTU do sensor de turbidez (CONAMA 357/2005: até 40 NTU classe 1, até 100 NTU classes 2 e 3). Sem ele, a luz bloqueada em 590–630 nm.</td></tr>
-        <tr><td>Semáforo dos índices</td><td style="white-space:normal">Abaixo de 0,05 baixo; de 0,05 a 0,20 moderado; acima de 0,20 alto. Os limites serão ajustados com as amostras de controle.</td></tr>
-        <tr><td>Índice geral</td><td style="white-space:normal">100 × (1 − penalidade), com pesos 30% turbidez, 20% clorofila, 20% cianobactérias, 15% matéria orgânica e 15% sedimentos. 80–100 bom, 50–79 atenção, abaixo de 50 alerta.</td></tr>
-      </tbody></table></div>
-    </section>
-
-    <section class="sync" data-reveal>
-      <span class="sync-badge">Sobre a análise</span>
-      <span>O AS7341 mede a luz em 8 cores. As porcentagens comparam a amostra com a água limpa gravada no aparelho; os indicadores são estimativas e devem ser confirmados com análises de laboratório.</span>
-    </section>
-
-    <footer class="page-footer"><strong>AquaMonitor</strong><span>Universidade de Vassouras, Engenharia de Software. Maricá, outubro de 2026.</span></footer>
-  </div>
-</main>
-</div>
-{{ dashboard_data|json_script:"dashboard-data" }}
-</body>
-</html>
+{% endblock %}
+{% block dados %}{{ dashboard_data|json_script:"dashboard-data" }}{% endblock %}

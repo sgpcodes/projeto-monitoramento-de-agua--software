@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -216,6 +216,18 @@ class DashboardDataTests(TestCase):
         self.assertIn("Status:", p2["conclusao"])
         self.assertEqual(d["padrao"], "lagoa_p2")
         self.assertIn("agua_podre", d["comparacao"])
+
+    @override_settings(STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    })
+    def test_pages_open(self):
+        for nome, texto in [("dashboard", "Registros recebidos"), ("pagina_amostras", "Semelhança com as referências"),
+                            ("pagina_historico", "Histórico dos pontos da lagoa"), ("pagina_guia", "Como interpretar")]:
+            resposta = self.client.get(reverse(nome))
+            self.assertEqual(resposta.status_code, 200, nome)
+            self.assertContains(resposta, texto)
+            self.assertContains(resposta, 'class="nav-link is-active"')
 
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})

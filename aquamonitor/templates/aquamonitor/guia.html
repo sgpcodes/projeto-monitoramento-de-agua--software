@@ -1,0 +1,43 @@
+{% extends "aquamonitor/base.html" %}
+{% load static %}
+{% block titulo %}Guia{% endblock %}
+{% block conteudo %}
+    <section class="sync" data-reveal>
+      <span class="sync-badge">Guia</span>
+      <span>Como ler o dashboard: o que o sensor mede, o que cada cor indica e como os índices são calculados.</span>
+    </section>
+
+    <section class="panel" id="interpretar" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Guia</p><h2>Como interpretar</h2><p>Cada substância absorve luz em comprimentos de onda específicos. O sensor mede quanta luz atravessa a amostra em 8 cores e compara com a água limpa gravada no aparelho (o "branco").</p></div></div>
+      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Conceito</th><th>Como funciona</th></tr></thead><tbody>
+        <tr><td>Absorbância</td><td style="white-space:normal">A = −log10(amostra ÷ água limpa). A = 0: igual à água limpa. A = 1: só 10% da luz passou.</td></tr>
+        <tr><td>Clorofila (algas)</td><td style="white-space:normal">A(680 nm) − A(590 nm): a clorofila absorve o vermelho.</td></tr>
+        <tr><td>Cianobactérias</td><td style="white-space:normal">média de A(590) e A(630 nm) − A(555 nm): a ficocianina absorve o amarelo-laranja.</td></tr>
+        <tr><td>Matéria orgânica</td><td style="white-space:normal">A(415 nm) − A(515 nm): água cor de chá absorve o violeta.</td></tr>
+        <tr><td>Sedimentos</td><td style="white-space:normal">Absorção no infravermelho (~910 nm): só partículas bloqueiam essa luz.</td></tr>
+        <tr><td>Turbidez</td><td style="white-space:normal">NTU do sensor de turbidez (CONAMA 357/2005: até 40 NTU classe 1, até 100 NTU classes 2 e 3). Sem ele, a luz bloqueada em 590–630 nm.</td></tr>
+        <tr><td>Semáforo dos índices</td><td style="white-space:normal">Abaixo de 0,05 baixo; de 0,05 a 0,20 moderado; acima de 0,20 alto. Os limites serão ajustados com as amostras de controle.</td></tr>
+        <tr><td>Índice geral</td><td style="white-space:normal">100 × (1 − penalidade), com pesos 30% turbidez, 20% clorofila, 20% cianobactérias, 15% matéria orgânica e 15% sedimentos. 80–100 bom, 50–79 atenção, abaixo de 50 alerta.</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="panel" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Análise espectral</p><h2>Regiões espectrais</h2><p>O que cada canal do AS7341 indica na água.</p></div></div>
+      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Canal</th><th>λ (nm)</th><th>Cor</th><th>O que indica na água</th></tr></thead><tbody>
+        <tr><td>F1</td><td>415</td><td>Violeta</td><td style="white-space:normal">Matéria orgânica dissolvida (água amarelada) absorve forte aqui</td></tr>
+        <tr><td>F2</td><td>445</td><td>Azul</td><td style="white-space:normal">Clorofila (pico azul) e matéria orgânica</td></tr>
+        <tr><td>F3</td><td>480</td><td>Ciano</td><td style="white-space:normal">Carotenoides (pigmentos de algas)</td></tr>
+        <tr><td>F4</td><td>515</td><td>Verde</td><td style="white-space:normal">Pouca absorção dos pigmentos: mostra mais as partículas</td></tr>
+        <tr><td>F5</td><td>555</td><td>Verde-amarelo</td><td style="white-space:normal">Referência para a cor (comparada com o violeta)</td></tr>
+        <tr><td>F6</td><td>590</td><td>Amarelo</td><td style="white-space:normal">Partículas (turbidez) e referência para as algas</td></tr>
+        <tr><td>F7</td><td>630</td><td>Laranja</td><td style="white-space:normal">Partículas e ficocianina (cianobactérias)</td></tr>
+        <tr><td>F8</td><td>680</td><td>Vermelho</td><td style="white-space:normal">Clorofila-a (algas)</td></tr>
+        <tr><td>NIR</td><td>~910</td><td>Infravermelho</td><td style="white-space:normal">Quase só a luz da lanterna: serve para conferir a iluminação</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="sync" data-reveal>
+      <span class="sync-badge">Sobre a análise</span>
+      <span>O AS7341 mede a luz em 8 cores. As porcentagens comparam a amostra com a água limpa gravada no aparelho; os indicadores são estimativas e devem ser confirmados com análises de laboratório.</span>
+    </section>
+{% endblock %}

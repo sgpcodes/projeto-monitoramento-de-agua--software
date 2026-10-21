@@ -1,0 +1,27 @@
+{% extends "aquamonitor/base.html" %}
+{% load static %}
+{% block titulo %}Histórico{% endblock %}
+{% block conteudo %}
+    <section class="sync" data-reveal>
+      <span class="sync-badge">Histórico</span>
+      <span>A água está melhorando ou piorando? Média por dia de cada ponto da lagoa nos últimos 30 dias.</span>
+    </section>
+
+    <section class="panel" id="historico" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Histórico</p><h2>Histórico dos pontos da lagoa</h2><p>Últimos 30 dias de leituras diárias. Linhas tracejadas: limites de turbidez da CONAMA 357/2005 para águas doces.</p></div>
+        <div class="spectrum-legend" id="hist-legenda"></div></div>
+      <div class="two-col" style="margin:0">
+        <div><p class="panel-kicker" id="hist-t-titulo" style="margin:0 28px">Turbidez (NTU)</p>
+          <div class="chart-wrap" id="hist-t-wrap"><svg id="hist-t-chart" class="chart" role="img" aria-label="Turbidez por dia"></svg></div>
+          <div class="chart-empty" id="hist-t-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
+        <div><p class="panel-kicker" style="margin:0 28px">Índices de clorofila (contínua) e matéria orgânica (tracejada)</p>
+          <div class="chart-wrap" id="hist-i-wrap"><svg id="hist-i-chart" class="chart" role="img" aria-label="Índices por dia"></svg></div>
+          <div class="chart-empty" id="hist-i-empty" hidden><strong>Histórico ainda curto</strong><span>Aparece com pelo menos 2 dias de medições de um ponto da lagoa.</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="coletas" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Coletas</p><h2>Histórico de idas à lagoa</h2><p>Transparência (Secchi), chuva, temperatura, observação e foto.</p></div><span class="record-count"><strong id="coletas-count">0</strong> coletas</span></div>
+      <div class="table-scroll"><table class="readings-table"><thead><tr><th>Data</th><th>Ponto</th><th>Secchi</th><th>Chuva 48h</th><th>Temp.</th><th>Observação</th><th>Foto</th></tr></thead><tbody id="coletas-body"></tbody></table></div>
+    </section>
+{% endblock %}

@@ -38,6 +38,18 @@ def dashboard(request):
     return render(request, "aquamonitor/dashboard.html", context)
 
 
+def _pagina(nome):
+    """Paginas Amostras, Historico e Guia: os dados chegam pelo JavaScript."""
+    def view(request):
+        return render(request, f"aquamonitor/{nome}.html", {"data_selecionada": timezone.localdate()})
+    return view
+
+
+pagina_amostras = _pagina("amostras")
+pagina_historico = _pagina("historico")
+pagina_guia = _pagina("guia")
+
+
 @never_cache
 def dashboard_data(request):
     hoje = timezone.localdate()

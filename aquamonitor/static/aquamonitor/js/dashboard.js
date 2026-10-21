@@ -620,7 +620,7 @@
   function selecionar(id) { selecionada = id; if ($("am-select")) $("am-select").value = id; renderTudoAmostras(); }
   $("am-select")?.addEventListener("change", (e) => selecionar(e.target.value));
   async function carregarAmostras() {
-    const url = shell?.dataset.amostrasUrl; if (!url || document.hidden) return;
+    const url = shell?.dataset.amostrasUrl; if (!url || document.hidden || !$("am-select")) return; // so na pagina Amostras
     try {
       const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -630,7 +630,7 @@
     } catch (e) { console.error("Não foi possível carregar as amostras.", e); }
   }
   async function carregarHistorico() {
-    const url = shell?.dataset.historicoUrl; if (!url || document.hidden) return;
+    const url = shell?.dataset.historicoUrl; if (!url || document.hidden || !$("hist-t-chart")) return; // so na pagina Historico
     try {
       const r = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
       if (r.ok) { historicoDados = await r.json(); renderHistoricoPontos(); }
@@ -777,7 +777,7 @@
   let refreshing = false;
   async function refresh() {
     const endpoint = shell?.dataset.dashboardUrl;
-    if (!endpoint || document.hidden || refreshing) return;
+    if (!endpoint || document.hidden || refreshing || !document.querySelector(".kpi-grid")) return; // so na pagina Agora
     refreshing = true;
     try {
       const url = new URL(endpoint, location.href); url.searchParams.set("data", shell.dataset.selectedDate);
@@ -815,7 +815,8 @@
     let current = "overview";
     secs.forEach((s) => { if (s.id && s.getBoundingClientRect().top < vh * 0.4) current = s.id; });
     if (current === "validacao" || current === "chart-section") current = "evolucao";
-    links.forEach((l) => l.classList.toggle("is-active", l.getAttribute("href") === `#${current}`));
+    // Menu com paginas separadas: so os links "#secao" acompanham a rolagem.
+    links.forEach((l) => { if (l.getAttribute("href").startsWith("#")) l.classList.toggle("is-active", l.getAttribute("href") === `#${current}`); });
     velocity = scrollY - lastY; lastY = scrollY; ticking = false;
   }
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });

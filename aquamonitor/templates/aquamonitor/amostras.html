@@ -1,0 +1,68 @@
+{% extends "aquamonitor/base.html" %}
+{% load static %}
+{% block titulo %}Amostras{% endblock %}
+{% block conteudo %}
+    <section class="sync" data-reveal>
+      <span class="sync-badge">Amostras</span>
+      <span>Escolha uma amostra (média de 3 medições) para ver o diagnóstico e compará-la com a água boa, a água podre e as referências.</span>
+    </section>
+
+    <section class="sample-analysis" id="sample-analysis" aria-label="Amostra selecionada" data-reveal>
+      <div class="sample-head">
+        <div><p class="panel-kicker">Amostra · média de 3 repetições</p><h2 id="am-nome">Leitura e diagnóstico</h2></div>
+        <div class="table-toolbar" style="padding:0;border:0">
+          <label class="select-label" for="am-select">Amostra<select id="am-select"></select></label>
+          <span class="sample-time">Leitura <strong id="am-leitura">—</strong></span>
+        </div>
+      </div>
+      <p class="sample-summary" id="am-conclusao">Carregando as amostras…</p>
+      <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+        <article class="sample-metric"><span>Turbidez</span><strong id="am-ntu">—</strong><svg id="am-gauge" viewBox="-14 0 228 118" role="img" aria-label="Faixas CONAMA de turbidez" style="width:100%;max-width:260px"></svg><span class="state-badge state-ok" id="am-classe"><i></i>—</span></article>
+        <article class="sample-metric"><span>Índice geral de qualidade</span><strong id="am-iq">—</strong><svg id="am-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:90px"></svg><span class="state-badge state-ok" id="am-status"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
+        <article class="sample-metric"><span>Cor da amostra</span><svg id="am-swatch" viewBox="0 0 72 72" aria-hidden="true" style="width:64px"></svg><strong id="am-cor">—</strong><small id="am-cor-info">—</small></article>
+        <article class="sample-metric sample-contamination"><span>Alerta principal</span><small id="am-alerta" style="font-size:14px;line-height:1.45">—</small></article>
+      </div>
+    </section>
+
+    <section class="panel" id="assinatura" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Assinatura espectral</p><h2>Assinatura espectral</h2><p>Absorbância por canal do AS7341, A = −log10(amostra / branco). Picos mostram o que está presente na água.</p></div>
+        <div class="spectrum-legend" id="assin-legenda"></div></div>
+      <div class="chart-wrap tall" id="assin-wrap"><svg id="assin-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
+      <div class="chart-empty" id="assin-empty" hidden><strong>Aguardando amostras</strong><span>Grave a água limpa (BOOT → 1) e meça uma amostra com nome (ex.: n lagoa_p1).</span></div>
+    </section>
+
+    <section class="panel" id="indicadores" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Indicadores</p><h2>O que esta amostra indica</h2><p>Índices de absorbância da amostra selecionada. A barra vai de 0 a 0,40; abaixo de 0,05 baixo, até 0,20 moderado, acima alto.</p></div></div>
+      <div class="sample-metrics" id="indicadores-body" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
+    </section>
+
+    <div class="two-col" id="comparacao">
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Comparação entre amostras</h2><p>Intensidade relativa (0 a 1): índices divididos por 0,40 e turbidez por 150 NTU. Mostra onde a lagoa fica entre a água boa e a podre.</p></div>
+          <div class="spectrum-legend"><span><i style="--c:#2f6fd0"></i>Algas</span><span><i style="--c:#ed7845"></i>Cianobactérias</span><span><i style="--c:#21b98a"></i>Matéria orgânica</span><span><i style="--c:#8452c6"></i>Sedimentos</span><span><i style="--c:#d6a417"></i>Turbidez</span></div></div>
+        <div class="chart-wrap" id="cmp-wrap"><svg id="cmp-chart" class="chart" role="img" aria-label="Comparação entre amostras"></svg></div>
+        <div class="chart-empty" id="cmp-empty" hidden><strong>Poucas amostras para comparar</strong><span>Meça a água boa (n agua_boa), a água podre (BOOT → 2) e os pontos da lagoa (n lagoa_p1...).</span></div>
+      </section>
+      <section class="panel" data-reveal>
+        <div class="panel-heading"><div><p class="panel-kicker">Comparação</p><h2>Semelhança com as referências</h2><p>Quanto o espectro da amostra se parece com cada referência: 100 · e<sup>−d/0,4</sup>, sendo d a distância euclidiana entre os 8 canais de absorbância.</p></div></div>
+        <div class="chart-wrap" id="sim-wrap"><svg id="sim-chart" class="chart" role="img" aria-label="Semelhança com as referências"></svg></div>
+        <div class="chart-empty" id="sim-empty" hidden><strong>Sem referências</strong><span>O branco é a referência do cálculo e não é comparado. Referências: n agua_boa, BOOT → 2, n ref_cha, n ref_terra, n ref_algas.</span></div>
+        <p class="sample-summary" id="sim-concl" style="margin:0 28px 24px"></p>
+      </section>
+    </div>
+
+    <section class="panel" id="validacao-diluicao" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Validação</p><h2>Validação do sensor – série de diluição</h2><p>Absorbância no canal de maior absorção de cada corante contra a concentração. R² próximo de 1 comprova a relação linear prevista pela lei de Beer-Lambert e valida o equipamento.</p></div></div>
+      <div class="chart-wrap" id="dil-wrap"><svg id="dil-chart" class="chart" role="img" aria-label="Série de diluição"></svg></div>
+      <div class="chart-empty" id="dil-empty" hidden><strong>Ainda não há série de diluição</strong><span>Meça pelo menos 3 concentrações de cada corante: n dil_amarelo_25 → m, n dil_amarelo_50 → m, n dil_amarelo_100 → m.</span></div>
+    </section>
+
+    <section class="panel" id="amostras-tabela" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Leituras</p><h2>Amostras</h2><p>Médias de 3 repetições por amostra. Clique numa linha para selecioná-la; clique no título da coluna para ordenar.</p></div></div>
+      <div class="table-toolbar"><label class="search-box" for="am-busca"><input id="am-busca" type="search" placeholder="Buscar amostra ou status" autocomplete="off"></label></div>
+      <div class="table-scroll"><table class="readings-table" id="am-tabela"><thead><tr>
+        <th data-k="nome">Amostra</th><th data-k="leitura">Data</th><th data-k="turbidez_ntu">Turbidez (NTU)</th><th data-k="turbidez_dp">DP turbidez</th>
+        <th data-k="clorofila">Clorofila</th><th data-k="cianobacterias">Cianobact.</th><th data-k="materia_organica">M. orgânica</th><th data-k="sedimentos">Sedimentos</th>
+        <th data-k="abs_dp">DP absorb.</th><th data-k="indice_geral">Índice geral</th><th data-k="status">Status</th></tr></thead><tbody id="am-tabela-body"></tbody></table></div>
+    </section>
+{% endblock %}
