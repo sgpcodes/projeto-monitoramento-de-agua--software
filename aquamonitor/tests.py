@@ -284,6 +284,16 @@ class DashboardDataTests(TestCase):
         self.assertIsNone(d["qualidade"]["ntu"])
         self.assertIsNone(d["serie"][0]["tensao_v"])  # leitura com defeito nao entra na serie
 
+    def test_voltage_beyond_the_curve_becomes_a_limit_not_a_gap(self):
+        self._leitura_turbidez({"ntu": None, "ntu_experimental": None, "tensao_v": 4.24, "adc_raw": 2525, "desvio_mv": 34,
+                                "status": "fora_da_faixa_da_curva", "calibracao_status": "pendente"})
+        sensor = self.client.get(reverse("dashboard_data")).json()["sensor_turbidez"]
+        self.assertEqual(sensor["estado_leitura"], "experimental")  # conta, nao some
+        self.assertEqual(sensor["ntu_limite"], "<=")
+        self.assertAlmostEqual(sensor["ntu_experimental"], 0.9, places=1)  # curva em 4,2 V
+        self.assertIsNone(sensor["ntu"])  # continua sem NTU validado
+        self.assertEqual(sensor["faixa_curva_ntu"], [0, 3000])
+
     def test_old_firmware_records_stay_readable_as_experimental(self):
         self._leitura_turbidez({"ntu": 868.0, "tensao_v": 3.94, "classificacao": "MUITO TURVA"})
         d = self.client.get(reverse("dashboard_data")).json()

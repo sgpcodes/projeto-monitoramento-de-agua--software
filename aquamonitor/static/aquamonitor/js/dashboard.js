@@ -388,7 +388,7 @@
       setText("ag-conclusao", "Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.");
       return;
     }
-    cartoesQualidade("ag", { ntu: q.ntu, luz: tb.luz_bloqueada_pct, iq: q.indice_geral, status: q.status, cor: q.cor, alerta: q.alerta });
+    cartoesQualidade("ag", { ntu: q.ntu, luz: tb.luz_bloqueada_pct, iq: q.indice_geral, status: q.status, cor: q.cor, alerta: q.alerta, sensor: q.sensor });
     // Indicadores com foto da leitura atual (mesmos cartoes da pagina Amostras).
     const atual = { niveis: {} };
     (data.componentes || []).forEach((c) => { atual[c.id] = c.valor; atual.niveis[c.id] = c.nivel ? c.nivel.toLowerCase() : null; });
@@ -440,35 +440,74 @@
     sel.value = selecionada || "";
   }
 
-  function renderGaugeAmostra(ntu, id = "am-gauge") {
+  // Medidor da turbidez em NTU.
+  //  validado:     faixas da CONAMA 357/2005 (40 e 100 NTU); escala cresce com o valor.
+  //  experimental: faixa inteira da curva do fabricante (0 a ~3000 NTU), cor neutra
+  //                (sem faixas de "bom/ruim": o valor ainda nao foi calibrado).
+  function renderGaugeAmostra(ntu, id = "am-gauge", modo = "validado", maxCurva = 3000, sufixo = "") {
     const svg = $(id); if (!svg) return;
     svg.replaceChildren(); svg.style.display = Number.isFinite(ntu) ? "" : "none";
     if (!Number.isFinite(ntu)) return;
-    // A escala cresce com o valor (nunca corta o ponteiro). As faixas sao os limites da
-    // CONAMA 357/2005 (40 e 100 NTU) e so aparecem com NTU de calibracao validada.
-    const MAX = Math.max(200, Math.ceil((ntu * 1.15) / 100) * 100), cx = 100, cy = 100, R = 80;
-    const pt = (v, r) => { const a = Math.PI * (1 - Math.min(v, MAX) / MAX); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
-    [[0, 40, VERDE], [40, 100, AMBAR], [100, MAX, VERMELHO]].forEach(([a, b, c]) => {
-      const [x0, y0] = pt(a + MAX * 0.003, R), [x1, y1] = pt(b - MAX * 0.003, R);
-      addSVG(svg, "path", { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}`, stroke: c, "stroke-width": 16, fill: "none", opacity: 0.85 });
-    });
-    [0, 40, 100, MAX].forEach((v) => { const [x, y] = pt(v, R + 14); svgText(svg, x, y + 3, String(v), { class: "axis-text", "text-anchor": "middle" }); });
+    const experimental = modo === "experimental";
+    const MAX = experimental ? maxCurva : Math.max(200, Math.ceil((ntu * 1.15) / 100) * 100), cx = 100, cy = 100, R = 80;
+    const pt = (v, r) => { const a = Math.PI * (1 - Math.min(Math.max(v, 0), MAX) / MAX); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+    const arco = (a, b, cor, op) => {
+      const [x0, y0] = pt(a, R), [x1, y1] = pt(b, R);
+      addSVG(svg, "path", { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}`, stroke: cor, "stroke-width": 16, fill: "none", opacity: op });
+    };
+    if (experimental) {
+      arco(0, MAX, "#19b5c8", 0.18);
+      arco(0, Math.min(ntu, MAX) || MAX * 0.002, "#0a8fa8", 0.9);
+      const marcas = sufixo === "%" ? [0, MAX / 2, MAX] : [0, MAX / 3, (2 * MAX) / 3, MAX];
+      marcas.forEach((v) => { const [x, y] = pt(v, R + 16); svgText(svg, x, y + 4, fx(v, 0) + sufixo, { class: "axis-text", "text-anchor": "middle" }); });
+    } else {
+      [[0, 40, VERDE], [40, 100, AMBAR], [100, MAX, VERMELHO]].forEach(([a, b, c]) => arco(a + MAX * 0.003, b - MAX * 0.003, c, 0.85));
+      [0, 40, 100, MAX].forEach((v) => { const [x, y] = pt(v, R + 14); svgText(svg, x, y + 3, String(v), { class: "axis-text", "text-anchor": "middle" }); });
+    }
     const [nx, ny] = pt(ntu, R - 6);
     addSVG(svg, "line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#23414d", "stroke-width": 3, "stroke-linecap": "round" });
     addSVG(svg, "circle", { cx, cy, r: 6, fill: "#23414d" });
   }
 
+
   const COR_STATUS = { bom: VERDE, "atenção": AMBAR, alerta: VERMELHO };
   // Os 4 cartoes do design (turbidez, indice geral, cor, alerta) com prefixo am- ou ag-.
   function cartoesQualidade(p, d) {
-    // ntu aqui e SEMPRE o validado (o back-end manda null enquanto a calibracao estiver pendente).
-    const ntu = d?.ntu;
-    setText(`${p}-ntu-label`, ntu != null ? "Turbidez" : "Índice relativo de turbidez");
-    setText(`${p}-ntu`, ntu != null ? fx(ntu, 1) : d?.luz != null ? `${fx(d.luz, 0)}%` : "—");
-    setText(`${p}-ntu-un`, ntu != null ? "NTU" : d?.luz != null ? "luz bloqueada (sensor de cor)" : "");
-    renderGaugeAmostra(ntu, `${p}-gauge`);
-    const classe = d?.valida === false ? "sem leitura válida" : ntu == null ? "Calibração em NTU pendente" : ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Acima de 100 NTU (CONAMA 357/2005)";
-    badge($(`${p}-classe`), classe, ntu != null && ntu <= 40);
+    // Turbidez com a unidade de cada sensor:
+    //   sensor de turbidez -> NTU (validado) ou NTU estimado pela curva + tensao (V)
+    //   sensor de cor      -> % da luz bloqueada (indice relativo)
+    const ntu = d?.ntu, sensor = d?.sensor || {}, luz = d?.luz;
+    const est = sensor.estado_leitura !== "invalida" ? sensor.ntu_experimental : null;
+    const tensao = sensor.tensao_v != null ? `${fx(sensor.tensao_v, 2)} V` : null;
+    const corTxt = luz != null ? `Sensor de cor: ${fx(luz, 0)}% da luz bloqueada (índice relativo, 0% = água limpa)` : "Sensor de cor: sem leitura";
+    let rotulo, valor, unidade, sub, classe, ok = false;
+    if (ntu != null) {
+      rotulo = "Turbidez"; valor = fx(ntu, 1); unidade = "NTU";
+      sub = `Sensor de turbidez${tensao ? ` · ${tensao}` : ""} · calibração validada`;
+      renderGaugeAmostra(ntu, `${p}-gauge`, "validado");
+      classe = ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Acima de 100 NTU (CONAMA 357/2005)";
+      ok = ntu <= 40;
+    } else if (est != null) {
+      rotulo = "Turbidez estimada";
+      valor = sensor.ntu_limite === "<=" ? "≤ 1" : sensor.ntu_limite === ">=" ? `≥ ${fx(est, 0)}` : fx(est, 0);
+      unidade = "NTU (estimado)";
+      sub = `Sensor de turbidez${tensao ? ` · ${tensao}` : ""} · ${sensor.ntu_limite === "<=" ? "água mais clara que o início da curva" : sensor.ntu_limite === ">=" ? "além do limite da curva" : "pela curva do fabricante"}`;
+      renderGaugeAmostra(est, `${p}-gauge`, "experimental", sensor.faixa_curva_ntu?.[1] || 3000);
+      classe = "Calibração em NTU pendente";
+    } else {
+      rotulo = "Índice relativo de turbidez"; valor = luz != null ? `${fx(luz, 0)}%` : "—"; unidade = luz != null ? "luz bloqueada (sensor de cor)" : "";
+      sub = `Sensor de turbidez: ${tensao ? `${tensao} · ` : ""}sem leitura válida`;
+      renderGaugeAmostra(null, `${p}-gauge`);
+      classe = d?.valida === false ? "sem leitura válida" : "Calibração em NTU pendente";
+    }
+    setText(`${p}-ntu-label`, rotulo); setText(`${p}-ntu`, valor); setText(`${p}-ntu-un`, unidade);
+    setText(`${p}-ntu-sub`, sub); setText(`${p}-ntu-cor`, est != null || ntu != null ? corTxt : "");
+    // Dois medidores, um por sensor, cada um na sua unidade.
+    const temTurb = ntu != null || est != null;
+    setText(`${p}-gauge-titulo`, temTurb ? (ntu != null ? "Sensor de turbidez (NTU)" : "Sensor de turbidez (NTU estimado)") : "Sensor de turbidez: sem leitura");
+    renderGaugeAmostra(luz, `${p}-gauge-cor`, "experimental", 100, "%");
+    setText(`${p}-gauge-cor-titulo`, luz != null ? "Sensor de cor (% luz bloqueada)" : "Sensor de cor: sem leitura");
+    badge($(`${p}-classe`), classe, ok);
     const iq = $(`${p}-iq`);
     if (iq) { iq.textContent = d?.iq == null ? "—" : String(d.iq); iq.style.color = COR_STATUS[d?.status] || ""; }
     const sem = $(`${p}-sem`);
@@ -488,7 +527,7 @@
     setText("am-nome", a.nome);
     setText("am-leitura", a.padrao ? `padrão gravado em ${a.leitura}` : `${a.leitura} · ${a.repeticoes} repetiç${a.repeticoes === 1 ? "ão" : "ões"}`);
     setText("am-conclusao", a.conclusao || "");
-    cartoesQualidade("am", { ntu: a.turbidez_ntu, luz: a.luz_bloqueada_pct, iq: a.indice_geral, status: a.status, cor: a.cor, alerta: a.alerta });
+    cartoesQualidade("am", { ntu: a.turbidez_ntu, luz: a.luz_bloqueada_pct, iq: a.indice_geral, status: a.status, cor: a.cor, alerta: a.alerta, sensor: a.sensor });
   }
 
 

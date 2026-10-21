@@ -109,6 +109,16 @@ def _ntu_valido(turbidez):
     return ntu
 
 
+# Curva do fabricante usada no firmware (dfrobot-sen0189-fabricante-v1): NTU em funcao
+# da tensao na saida do sensor (5 V). Vale de 2,5 V (~3000 NTU) a 4,2 V (~0 NTU).
+CURVA_FABRICANTE = {"a": -1120.4, "b": 5742.3, "c": -4352.9, "min_v": 2.5, "max_v": 4.2}
+
+
+def _ntu_da_curva(v):
+    c = CURVA_FABRICANTE
+    return max(0.0, c["a"] * v * v + c["b"] * v + c["c"])
+
+
 def _sensor_turbidez(turbidez):
     """Estado do sensor de turbidez de uma leitura: dados crus, validacao e calibracao.
     estado_leitura: invalida (defeito/fora da faixa), experimental (calibracao pendente)
@@ -118,6 +128,18 @@ def _sensor_turbidez(turbidez):
     if antigo:
         status = "ok" if turbidez.get("tensao_v") is not None else "sem_dado"
     validada = turbidez.get("calibracao_status") == "validada"
+    tensao = turbidez.get("tensao_v")
+    ntu_exp = turbidez.get("ntu_experimental", turbidez.get("ntu") if antigo else None)
+    limite = turbidez.get("ntu_limite")
+    # Fora da faixa da curva nao e defeito: e um valor alem do inicio/fim da curva.
+    # Acima de 4,2 V a agua esta mais clara que o "0 NTU" da curva (<= ~1 NTU);
+    # abaixo de 2,5 V esta mais turva que o fim da curva (>= ~3000 NTU).
+    if status == "fora_da_faixa_da_curva" and tensao is not None:
+        if tensao > CURVA_FABRICANTE["max_v"]:
+            ntu_exp, limite = round(_ntu_da_curva(CURVA_FABRICANTE["max_v"]), 1), "<="
+        elif tensao < CURVA_FABRICANTE["min_v"]:
+            ntu_exp, limite = round(_ntu_da_curva(CURVA_FABRICANTE["min_v"]), 1), ">="
+        status = "ok"
     if status != "ok":
         estado = "invalida"
     else:
@@ -131,7 +153,9 @@ def _sensor_turbidez(turbidez):
         "calibracao_status": "validada" if validada else "pendente",
         "calibracao_id": turbidez.get("calibracao_id") or ("firmware antigo (curva do fabricante)" if antigo else None),
         # Firmware antigo mandava a estimativa no campo "ntu": aqui ela aparece como experimental.
-        "ntu_experimental": turbidez.get("ntu_experimental", turbidez.get("ntu") if antigo else None),
+        "ntu_experimental": ntu_exp,
+        "ntu_limite": limite,  # "<=" ou ">=" quando passou do inicio/fim da curva
+        "faixa_curva_ntu": [0, round(_ntu_da_curva(CURVA_FABRICANTE["min_v"]))],
         "ntu": turbidez.get("ntu") if validada else None,
     }
 
@@ -361,6 +385,7 @@ def _qualidade_atual(atual, atual_indices, suja_q, observacoes):
         alerta = "Nenhum indicador acima do normal nesta leitura."
     return {
         "valida": True,
+        "sensor": atual_indices["sensor"],
         "indice_geral": geral,
         "status": st,
         "ntu": _numero(q["ntu"]),
@@ -547,6 +572,22 @@ def _dados_painel(data_selecionada, leituras, metricas):
     }
 
 
+def _sensor_resumo(sensores):
+    """Sensor de turbidez das repeticoes de uma amostra: medias das leituras sem defeito."""
+    ok = [s for s in sensores if s["estado_leitura"] != "invalida"]
+    if not ok:
+        return {"estado_leitura": "invalida" if sensores else "sem_dado", "tensao_v": None, "ntu_experimental": None,
+                "ntu_limite": None, "faixa_curva_ntu": sensores[0]["faixa_curva_ntu"] if sensores else None}
+    limites = {s["ntu_limite"] for s in ok}
+    return {
+        "estado_leitura": ok[0]["estado_leitura"],
+        "tensao_v": _numero(_media([s["tensao_v"] for s in ok])),
+        "ntu_experimental": _numero(_media([s["ntu_experimental"] for s in ok])),
+        "ntu_limite": limites.pop() if len(limites) == 1 else None,
+        "faixa_curva_ntu": ok[0]["faixa_curva_ntu"],
+    }
+
+
 def _diagnostico_sensor(leitura, indices):
     """Painel "Diagnostico do sensor": ultima leitura recebida, como chegou."""
     return {
@@ -664,6 +705,7 @@ def _resumo_amostra(id_, leituras, branco):
         "turbidez_dp": _numero(_desvio(ntus)),
         "luz_bloqueada_pct": _numero(luz),
         "classe_turbidez": qualidade.classe_texto(ntu),
+        "sensor": _sensor_resumo([r[1]["sensor"] for r in reps]),
         **{k: _numero(v) for k, v in ix.items()},
         "niveis": {k: qualidade.nivel_texto(v) for k, v in ix.items()},
         "intensidades": (
