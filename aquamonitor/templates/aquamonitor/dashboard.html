@@ -118,13 +118,19 @@
 
     <div class="two-col">
       <section class="panel" data-reveal>
-        <div class="panel-heading"><div><p class="panel-kicker">Bancada</p><h2>Comparativo de canais</h2><p id="canais-description">Para que serve: conferir se o aparelho está medindo bem. Barras muito baixas = pouca luz (lanterna fraca ou torta). Barrinha preta grande = leitura instável.</p></div>
+        <div class="panel-heading"><div><p class="panel-kicker">Bancada · conferir o aparelho</p><h2>Luz que chega ao sensor</h2><p id="canais-description">Para que serve: verificar se a lanterna e o sensor estão funcionando, antes de confiar nas análises. Este gráfico não mostra a qualidade da água, mostra se o aparelho está medindo direito.</p></div>
           <div class="segmented" role="tablist" aria-label="Leitura comparada" id="canais-mode">
             <button type="button" role="tab" class="seg-btn is-active" data-canais="atual" aria-selected="true">Atual</button>
             <button type="button" role="tab" class="seg-btn" data-canais="dia" aria-selected="false">Média do dia</button>
           </div></div>
         <div class="chart-wrap" id="live-wrap"><svg id="live-chart" class="chart" role="img" aria-label="Leitura ao vivo por canal"></svg></div>
         <div class="chart-empty" id="live-empty" hidden><strong>Aguardando leitura do sensor</strong><span>Os canais aparecem assim que uma amostra chegar.</span></div>
+        <p class="sample-summary" id="canais-status" style="margin:0 28px 6px;font-weight:600"></p>
+        <div class="spectrum-legend" style="padding:4px 28px 24px;display:grid;gap:6px">
+          <span><b>Altura da barra</b>&nbsp;= quanta luz daquela cor chegou ao sensor</span>
+          <span style="display:block"><b>Barra abaixo da linha vermelha tracejada</b>&nbsp;= pouca luz (abaixo do mínimo para medir bem): lanterna fraca, torta ou caixa aberta</span>
+          <span style="display:block"><b>Tracinho preto em cima da barra</b>&nbsp;= quanto a leitura variou (grande = instável)</span>
+        </div>
       </section>
       <section class="panel" id="chart-section" data-reveal>
         <div class="panel-heading"><div><p class="panel-kicker">Temporal</p><h2>Turbidez ao longo do dia</h2><p>Para que serve: acompanhar o quanto a água está turva (barro, sujeira) ao longo do dia. Quanto mais alto, mais turva.</p></div></div>
