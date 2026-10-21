@@ -447,23 +447,31 @@
     });
   }
 
+  const FOTOS = { clorofila: "alg", cianobacterias: "cya", materia_organica: "org", sedimentos: "sed" };
   function renderIndicadoresAmostra() {
     const box = $("indicadores-body"), a = amostraSel(); if (!box) return;
     box.replaceChildren();
     if (!a) return;
+    const pasta = shell?.dataset.imgUrl || "/static/aquamonitor/img/";
     IND.forEach((d) => {
       const v = a[d.k], nv = a.niveis?.[d.k];
       const card = document.createElement("article"); card.className = "sample-metric";
-      const topo = document.createElement("span"); topo.textContent = d.nome;
+      card.style.padding = "0"; card.style.overflow = "hidden"; card.style.gap = "0"; card.style.display = "flex"; card.style.flexDirection = "column"; card.style.justifyContent = "flex-start";
+      const foto = document.createElement("div"); foto.setAttribute("role", "img"); foto.setAttribute("aria-label", `Foto: ${d.nome}`);
+      Object.assign(foto.style, { height: "150px", backgroundImage: `url(${pasta}indicador-${FOTOS[d.k]}.jpg)`, backgroundSize: "cover", backgroundPosition: "center" });
+      const corpo = document.createElement("div"); Object.assign(corpo.style, { display: "flex", flexDirection: "column", gap: "12px", padding: "18px 22px 22px" });
+      const topo = document.createElement("div"); Object.assign(topo.style, { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" });
+      const nome = document.createElement("strong"); nome.textContent = d.nome; nome.style.fontSize = "21px";
       const b = document.createElement("span"); badge(b, nv || "sem dado", nv === "baixo");
+      topo.append(nome, b);
       const barra = document.createElementNS(SVG_NS, "svg"); barra.setAttribute("viewBox", "0 0 100 8"); barra.setAttribute("preserveAspectRatio", "none");
       barra.style.width = "100%"; barra.style.height = "10px";
       addSVG(barra, "rect", { x: 0, y: 0, width: 100, height: 8, rx: 4, fill: "rgba(16,110,135,.12)" });
       if (Number.isFinite(v)) addSVG(barra, "rect", { x: 0, y: 0, width: Math.max(2, clamp(v / 0.4) * 100), height: 8, rx: 4, fill: nivelCor(nv) });
       const valor = document.createElement("small"); valor.textContent = Number.isFinite(v) ? `Índice ${fx(v, 3)}` : "Sem sinal (a lanterna emite pouco infravermelho)";
-      const texto = document.createElement("strong"); texto.style.fontSize = "15px"; texto.style.lineHeight = "1.4"; texto.style.fontWeight = "500";
+      const texto = document.createElement("p"); Object.assign(texto.style, { margin: "0", fontSize: "17px", lineHeight: "1.5" });
       texto.textContent = nv ? d[nv] : "—";
-      card.append(topo, b, barra, valor, texto); box.append(card);
+      corpo.append(topo, barra, valor, texto); card.append(foto, corpo); box.append(card);
     });
   }
 
