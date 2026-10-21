@@ -268,7 +268,7 @@ def _nivel(valor, faixa):
 
 
 COMO = {
-    "turbidez": "partículas: luz bloqueada em 590–630 nm pelo sensor de cor (NTU só com calibração validada)",
+    "turbidez": "partículas: luz bloqueada em 590–630 nm pelo sensor de cor",
     "clorofila": "absorção extra no vermelho 680 nm em relação ao amarelo 590 nm",
     "cianobacterias": "absorção extra no laranja 630 nm (ficocianina)",
     "materia_organica": "absorção extra no violeta 415 nm em relação ao verde 555 nm (cor de chá)",

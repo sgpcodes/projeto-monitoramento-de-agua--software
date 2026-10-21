@@ -304,3 +304,13 @@ button,input,select{font:inherit;color:inherit}
 .page-footer{font-size:15px}#tip{font-size:14px;max-width:320px}
 /* Ondas do topo: um pouco mais altas e passando das bordas */
 .waves{height:220px;left:-3%;width:106%}
+/* Cartao de turbidez com os dois sensores: mais espaco e legivel no claro e no escuro */
+.card-sensores{grid-column:span 2}
+.sensores-medidores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.sensor-medidor{display:grid;gap:8px;justify-items:center;text-align:center}
+.sensor-medidor svg{width:100%;max-width:380px}
+.card-sensores .sensor-titulo{font:700 20px/1.2 var(--display);color:var(--ink)}
+.card-sensores .sensor-valor{font:800 48px/1 var(--display);color:var(--ink)}
+.sensor-unidade{font-size:19px;color:var(--soft)}
+.sensor-detalhe{font-size:15px;color:var(--soft)}
+@media(max-width:760px){.card-sensores{grid-column:auto}.sensores-medidores{grid-template-columns:1fr}}

@@ -456,58 +456,46 @@
       addSVG(svg, "path", { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}`, stroke: cor, "stroke-width": 16, fill: "none", opacity: op });
     };
     if (experimental) {
-      arco(0, MAX, "#19b5c8", 0.18);
-      arco(0, Math.min(ntu, MAX) || MAX * 0.002, "#0a8fa8", 0.9);
+      arco(0, MAX, "#19b5c8", 0.28);
+      arco(0, Math.min(ntu, MAX) || MAX * 0.002, "#19b5c8", 1);
       const marcas = sufixo === "%" ? [0, MAX / 2, MAX] : [0, MAX / 3, (2 * MAX) / 3, MAX];
-      marcas.forEach((v) => { const [x, y] = pt(v, R + 16); svgText(svg, x, y + 4, fx(v, 0) + sufixo, { class: "axis-text", "text-anchor": "middle" }); });
+      marcas.forEach((v) => { const [x, y] = pt(v, R + 16); svgText(svg, x, y + 4, fx(v, 0) + sufixo, { class: "axis-text", "text-anchor": "middle", style: "fill:var(--soft);font-size:15px" }); });
     } else {
       [[0, 40, VERDE], [40, 100, AMBAR], [100, MAX, VERMELHO]].forEach(([a, b, c]) => arco(a + MAX * 0.003, b - MAX * 0.003, c, 0.85));
-      [0, 40, 100, MAX].forEach((v) => { const [x, y] = pt(v, R + 14); svgText(svg, x, y + 3, String(v), { class: "axis-text", "text-anchor": "middle" }); });
+      [0, 40, 100, MAX].forEach((v) => { const [x, y] = pt(v, R + 16); svgText(svg, x, y + 4, String(v), { class: "axis-text", "text-anchor": "middle", style: "fill:var(--soft);font-size:15px" }); });
     }
     const [nx, ny] = pt(ntu, R - 6);
-    addSVG(svg, "line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#23414d", "stroke-width": 3, "stroke-linecap": "round" });
-    addSVG(svg, "circle", { cx, cy, r: 6, fill: "#23414d" });
+    addSVG(svg, "line", { x1: cx, y1: cy, x2: nx, y2: ny, style: "stroke:var(--ink)", "stroke-width": 4, "stroke-linecap": "round" });
+    addSVG(svg, "circle", { cx, cy, r: 7, style: "fill:var(--ink)" });
   }
 
 
   const COR_STATUS = { bom: VERDE, "atenção": AMBAR, alerta: VERMELHO };
   // Os 4 cartoes do design (turbidez, indice geral, cor, alerta) com prefixo am- ou ag-.
   function cartoesQualidade(p, d) {
-    // Turbidez com a unidade de cada sensor:
-    //   sensor de turbidez -> NTU (validado) ou NTU estimado pela curva + tensao (V)
+    // Turbidez pelos dois sensores, cada um na sua unidade:
+    //   sensor de turbidez -> NTU (validado) ou NTU estimado pela curva do fabricante + tensao
     //   sensor de cor      -> % da luz bloqueada (indice relativo)
     const ntu = d?.ntu, sensor = d?.sensor || {}, luz = d?.luz;
     const est = sensor.estado_leitura !== "invalida" ? sensor.ntu_experimental : null;
     const tensao = sensor.tensao_v != null ? `${fx(sensor.tensao_v, 2)} V` : null;
-    const corTxt = luz != null ? `Sensor de cor: ${fx(luz, 0)}% da luz bloqueada (índice relativo, 0% = água limpa)` : "Sensor de cor: sem leitura";
-    let rotulo, valor, unidade, sub, classe, ok = false;
+    let valor = "—", unidade = "", sub = tensao ? `${tensao} · sem leitura válida` : "sem leitura";
     if (ntu != null) {
-      rotulo = "Turbidez"; valor = fx(ntu, 1); unidade = "NTU";
-      sub = `Sensor de turbidez${tensao ? ` · ${tensao}` : ""} · calibração validada`;
+      valor = fx(ntu, 1); unidade = "NTU";
+      const classe = ntu <= 40 ? "compatível com classe 1" : ntu <= 100 ? "compatível com classes 2 e 3" : "acima de 100 NTU (CONAMA)";
+      sub = `${tensao ? `${tensao} · ` : ""}${classe}`;
       renderGaugeAmostra(ntu, `${p}-gauge`, "validado");
-      classe = ntu <= 40 ? "Compatível com classe 1" : ntu <= 100 ? "Compatível com classes 2 e 3" : "Acima de 100 NTU (CONAMA 357/2005)";
-      ok = ntu <= 40;
     } else if (est != null) {
-      rotulo = "Turbidez estimada";
       valor = sensor.ntu_limite === "<=" ? "≤ 1" : sensor.ntu_limite === ">=" ? `≥ ${fx(est, 0)}` : fx(est, 0);
       unidade = "NTU (estimado)";
-      sub = `Sensor de turbidez${tensao ? ` · ${tensao}` : ""} · ${sensor.ntu_limite === "<=" ? "água mais clara que o início da curva" : sensor.ntu_limite === ">=" ? "além do limite da curva" : "pela curva do fabricante"}`;
+      sub = `${tensao ? `${tensao} · ` : ""}${sensor.ntu_limite === "<=" ? "água mais clara que o início da curva" : sensor.ntu_limite === ">=" ? "além do limite da curva" : "pela curva do fabricante"}`;
       renderGaugeAmostra(est, `${p}-gauge`, "experimental", sensor.faixa_curva_ntu?.[1] || 3000);
-      classe = "Calibração em NTU pendente";
     } else {
-      rotulo = "Índice relativo de turbidez"; valor = luz != null ? `${fx(luz, 0)}%` : "—"; unidade = luz != null ? "luz bloqueada (sensor de cor)" : "";
-      sub = `Sensor de turbidez: ${tensao ? `${tensao} · ` : ""}sem leitura válida`;
       renderGaugeAmostra(null, `${p}-gauge`);
-      classe = d?.valida === false ? "sem leitura válida" : "Calibração em NTU pendente";
     }
-    setText(`${p}-ntu-label`, rotulo); setText(`${p}-ntu`, valor); setText(`${p}-ntu-un`, unidade);
-    setText(`${p}-ntu-sub`, sub); setText(`${p}-ntu-cor`, est != null || ntu != null ? corTxt : "");
-    // Dois medidores, um por sensor, cada um na sua unidade.
-    const temTurb = ntu != null || est != null;
-    setText(`${p}-gauge-titulo`, temTurb ? (ntu != null ? "Sensor de turbidez (NTU)" : "Sensor de turbidez (NTU estimado)") : "Sensor de turbidez: sem leitura");
+    setText(`${p}-ntu`, valor); setText(`${p}-ntu-un`, unidade); setText(`${p}-ntu-sub`, sub);
+    setText(`${p}-luz`, luz != null ? `${fx(luz, 0)}%` : "—");
     renderGaugeAmostra(luz, `${p}-gauge-cor`, "experimental", 100, "%");
-    setText(`${p}-gauge-cor-titulo`, luz != null ? "Sensor de cor (% luz bloqueada)" : "Sensor de cor: sem leitura");
-    badge($(`${p}-classe`), classe, ok);
     const iq = $(`${p}-iq`);
     if (iq) { iq.textContent = d?.iq == null ? "—" : String(d.iq); iq.style.color = COR_STATUS[d?.status] || ""; }
     const sem = $(`${p}-sem`);
