@@ -36,6 +36,27 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const colors = ["#7952c7", "#4c78ed", "#18a6d5", "#21b98a", "#94bf36", "#e8a926", "#ed7845", "#e34e5a"];
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const heroDrop = document.querySelector(".drop");
+  const dropBody = heroDrop?.querySelector(".drop-body");
+  const dropGlow = heroDrop?.querySelector("#dropGlow");
+  if (heroDrop && dropBody && dropGlow && !reduce) {
+    heroDrop.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch") return;
+      const bounds = heroDrop.getBoundingClientRect();
+      const x = clamp((event.clientX - bounds.left) / bounds.width);
+      const y = clamp((event.clientY - bounds.top) / bounds.height);
+      dropBody.style.setProperty("--tilt-x", `${(0.5 - y) * 16}deg`);
+      dropBody.style.setProperty("--tilt-y", `${(x - 0.5) * 16}deg`);
+      dropGlow.setAttribute("cx", `${20 + x * 60}%`);
+      dropGlow.setAttribute("cy", `${12 + y * 58}%`);
+    });
+    heroDrop.addEventListener("pointerleave", () => {
+      dropBody.style.removeProperty("--tilt-x");
+      dropBody.style.removeProperty("--tilt-y");
+      dropGlow.setAttribute("cx", "35%");
+      dropGlow.setAttribute("cy", "28%");
+    });
+  }
   const fmt = (n, d) => Number(n).toLocaleString("pt-BR", d == null ? {} : { maximumFractionDigits: d });
   const NOMES_CORES = ["Violeta", "Azul", "Ciano", "Verde", "Verde-amarelo", "Amarelo", "Laranja", "Vermelho"];
   // Rotulos de hora sem embolar: no maximo ~8 no eixo.

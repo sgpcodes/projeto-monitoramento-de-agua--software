@@ -30,7 +30,23 @@
 
 <header class="nav">
   <a class="brand" href="{% url 'dashboard' %}" aria-label="AquaMonitor, início">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="brandDropGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#baf8ff"/>
+          <stop offset=".45" stop-color="#30c1d2"/>
+          <stop offset="1" stop-color="#08728f"/>
+        </linearGradient>
+        <radialGradient id="brandDropGlow" cx=".3" cy=".23" r=".8">
+          <stop offset="0" stop-color="#fff" stop-opacity=".8"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <path d="M16 3.5C12.4 9 7 14.5 7 20a9 9 0 0 0 18 0c0-5.5-5.4-11-9-16.5Z" fill="url(#brandDropGradient)" stroke="#e7fdff" stroke-opacity=".72" stroke-width=".8"/>
+      <path d="M16 4.5C12.7 9.6 8 15 8 20a8 8 0 0 0 16 0c0-5-4.7-10.4-8-15.5Z" fill="url(#brandDropGlow)"/>
+      <path d="M11.5 18c.4-2.8 2-5.2 3.6-7.4" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="12.5" cy="16" rx=".8" ry="1.5" fill="#fff" fill-opacity=".8" transform="rotate(24 12.5 16)"/>
+    </svg>
     <strong>AquaMonitor</strong>
   </a>
   {% with pagina=request.resolver_match.url_name %}
