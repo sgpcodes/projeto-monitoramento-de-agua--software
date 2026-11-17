@@ -13,6 +13,20 @@ from .serializers import CHANNELS
 from .services import calcular_metricas
 
 
+def _leituras_da_data(data_selecionada):
+    """Leituras da data pedida. Se for HOJE e ainda nao chegou nada (aparelho
+    desligado, virou o dia...), usa a ultima coleta com dados para o painel nao sumir."""
+    coleta = Coleta.objects.filter(data_coleta=data_selecionada).first()
+    leituras = list(coleta.leituras.order_by("medido_em", "pk")) if coleta else []
+    if not leituras and data_selecionada == timezone.localdate():
+        anterior = (Coleta.objects.filter(data_coleta__lt=data_selecionada, leituras__isnull=False)
+                    .order_by("-data_coleta").first())
+        if anterior:
+            coleta = anterior
+            leituras = list(anterior.leituras.order_by("medido_em", "pk"))
+    return coleta, leituras
+
+
 def dashboard(request):
     hoje = timezone.localdate()
     try:
@@ -20,8 +34,7 @@ def dashboard(request):
     except ValueError:
         data_selecionada = hoje
 
-    coleta = Coleta.objects.filter(data_coleta=data_selecionada).first()
-    leituras = list(coleta.leituras.order_by("medido_em", "pk")) if coleta else []
+    coleta, leituras = _leituras_da_data(data_selecionada)
     metricas = calcular_metricas(leituras)
     painel = _dados_painel(data_selecionada, leituras, metricas)
     context = {
@@ -58,8 +71,7 @@ def dashboard_data(request):
     except ValueError:
         return JsonResponse({"erro": "Data inválida."}, status=400)
 
-    coleta = Coleta.objects.filter(data_coleta=data_selecionada).first()
-    leituras = list(coleta.leituras.order_by("medido_em", "pk")) if coleta else []
+    _, leituras = _leituras_da_data(data_selecionada)
     metricas = calcular_metricas(leituras)
     return JsonResponse(_dados_painel(data_selecionada, leituras, metricas))
 
@@ -340,7 +352,7 @@ def _observacoes(serie, atual_indices, suspeitas, minutos_sem_enviar):
     if atual_indices and atual_indices.get("luz_mudou"):
         obs.append(MSG_LUZ_MUDOU.format(luz=atual_indices["turbidez"]))
     if minutos_sem_enviar is not None and minutos_sem_enviar > OFFLINE_MIN:
-        obs.append(f"O aparelho está sem enviar há {minutos_sem_enviar} minutos: confira energia e Wi-Fi.")
+        obs.append(f"O aparelho está sem enviar há {_duracao(minutos_sem_enviar)}: confira energia e Wi-Fi.")
     if atual_indices:
         pct = [p for p in atual_indices["porcentagens"] if p is not None]
         contam = atual_indices["contaminacao"]
@@ -475,10 +487,21 @@ def _dados_painel(data_selecionada, leituras, metricas):
 
     # Ultima leitura valida da lagoa: e ela que aparece no diagnostico e no espectro.
     validas = [(leitura, i) for leitura, i in lagoa if not i["suspeita"]]
-    # Tempo real mostra SEMPRE a leitura mais recente. Se ela for suspeita (luz mudou,
-    # pouca luz...), a pagina avisa e esvazia os indicadores, em vez de voltar para
-    # uma leitura valida mais antiga (que nao e o que esta no pote agora).
+    # Tempo real: a leitura mais recente. Se ela for invalida (amostra caiu, sensor
+    # desconectou, pouca luz...), o painel NAO esvazia: continua com a ultima medicao
+    # valida e avisa desde quando as leituras estao invalidas.
     atual, atual_indices = (lagoa or [(None, None)])[-1]
+    congelada = None
+    if atual and atual_indices["suspeita"] and validas:
+        motivo = _estado(atual, atual_indices).lower()
+        ultima_valida = validas[-1][0]
+        desde = next(l for l, _ in lagoa if l.medido_em > ultima_valida.medido_em)
+        atual, atual_indices = validas[-1]
+        congelada = {
+            "motivo": motivo,
+            "desde": _hora_curta(desde.medido_em, data_selecionada),
+            "ultima_valida": _hora_curta(ultima_valida.medido_em, data_selecionada),
+        }
 
     espectro = None
     live = None
@@ -516,7 +539,7 @@ def _dados_painel(data_selecionada, leituras, metricas):
         }
         amostra_atual = {
             "nome": atual.amostra,
-            "hora": timezone.localtime(atual.medido_em).strftime("%H:%M:%S"),
+            "hora": _hora_curta(atual.medido_em, data_selecionada, segundos=True),
             "suspeita": atual_indices["suspeita"],
         }
 
@@ -536,6 +559,15 @@ def _dados_painel(data_selecionada, leituras, metricas):
     minutos_sem_enviar = None
     if leituras and data_selecionada == timezone.localdate():
         minutos_sem_enviar = int((timezone.now() - leituras[-1].medido_em).total_seconds() // 60)
+    aparelho_parado = minutos_sem_enviar is not None and minutos_sem_enviar > OFFLINE_MIN
+    aviso_congelado = None
+    if atual and aparelho_parado:
+        aviso_congelado = (f"Aparelho desconectado: nada chega há {_duracao(minutos_sem_enviar)}. "
+                           f"Mostrando a última medição, de {_hora_curta(atual.medido_em, data_selecionada)}.")
+    elif congelada:
+        aviso_congelado = (f"As leituras desde {congelada['desde']} estão inválidas ({congelada['motivo']}): "
+                           f"amostra fora do lugar ou sensor desconectado? Mostrando a última medição válida, "
+                           f"de {congelada['ultima_valida']}.")
     observacoes = _observacoes(
         serie,
         atual_indices if atual else None,
@@ -552,12 +584,15 @@ def _dados_painel(data_selecionada, leituras, metricas):
         "suspeitas": sum(indices[leitura.pk]["suspeita"] for leitura in leituras),
         "estouradas": sum(leitura.saturado for leitura in leituras),
         "ultima_leitura": (
-            timezone.localtime(leituras[-1].medido_em).strftime("%H:%M")
+            _hora_curta(leituras[-1].medido_em, data_selecionada)
             if leituras
             else None
         ),
         "minutos_sem_enviar": minutos_sem_enviar,
-        "aparelho_parado": minutos_sem_enviar is not None and minutos_sem_enviar > OFFLINE_MIN,
+        "aparelho_parado": aparelho_parado,
+        "congelada": congelada,
+        "aviso_congelado": aviso_congelado,
+        "dados_de": leituras[-1].collection.data_coleta.isoformat() if leituras else None,
         "leituras": [
             {
                 "hora": timezone.localtime(leitura.medido_em).strftime("%H:%M:%S"),
@@ -819,6 +854,22 @@ def _ph(leitura):
         "calibracao_status": ph.get("calibracao_status"),
         "tensao_v": ph.get("tensao_v"),
     }
+
+
+def _hora_curta(momento, dia=None, segundos=False):
+    """Hora local; se nao for do dia mostrado na pagina, com o dia na frente (ex.: 16/11 18:42)."""
+    local = timezone.localtime(momento)
+    hora = local.strftime("%H:%M:%S" if segundos else "%H:%M")
+    return hora if local.date() == (dia or timezone.localdate()) else f"{local:%d/%m} {hora}"
+
+
+def _duracao(minutos):
+    if minutos < 60:
+        return f"{minutos} min"
+    horas, resto = divmod(minutos, 60)
+    if horas < 24:
+        return f"{horas} h {resto:02d} min" if resto else f"{horas} h"
+    return f"{horas // 24} dia(s)"
 
 
 def _numero(valor):

@@ -320,14 +320,45 @@ class DashboardDataTests(TestCase):
         self.assertEqual(d["leituras"][0]["estado"], "Luz mudou")
         self.assertEqual(d["serie"], [])
 
-    def test_latest_reading_is_shown_even_when_suspect(self):
+    def test_invalid_latest_reading_keeps_the_last_valid_one_with_a_warning(self):
         limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
-        self._leitura_cores([67, 69, 69, 68, 68, 69, 67, 67], limpa, minutos=5)
-        self._leitura_cores([11, 11, 12, 11, 11, 12, 11, 11], limpa)  # agora: luz caiu ~89%
+        self._leitura_cores([67, 69, 69, 68, 68, 69, 67, 67], limpa, minutos=2)
+        self._leitura_cores([11, 11, 12, 11, 11, 12, 11, 11], limpa, minutos=1)  # amostra caiu: luz caiu ~89%
+        self._leitura_cores([11, 11, 12, 11, 11, 12, 11, 11], limpa)
         d = self.client.get(reverse("dashboard_data")).json()
-        self.assertTrue(d["amostra_atual"]["suspeita"])
-        self.assertFalse(d["qualidade"]["valida"])  # nao mostra dados velhos como se fossem de agora
-        self.assertIn("lanterna", d["qualidade"]["alerta"])
+        self.assertFalse(d["amostra_atual"]["suspeita"])  # o painel nao esvazia
+        self.assertTrue(d["qualidade"]["valida"])
+        self.assertEqual(d["live"]["porcentagens"][0], 67)  # dados da ultima medicao valida
+        self.assertEqual(d["congelada"]["motivo"], "luz mudou")
+        self.assertIn("inválidas", d["aviso_congelado"])
+        self.assertIn(d["congelada"]["desde"], d["aviso_congelado"])
+
+    def test_disconnected_device_keeps_the_last_reading_on_screen(self):
+        limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}
+        self._leitura_cores([67, 69, 69, 68, 68, 69, 67, 67], limpa, minutos=90)
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertTrue(d["aparelho_parado"])
+        self.assertTrue(d["qualidade"]["valida"])
+        self.assertIn("desconectado", d["aviso_congelado"])
+        self.assertIn("1 h 30 min", d["aviso_congelado"])
+
+    def test_new_day_without_readings_shows_the_last_collection(self):
+        ontem = timezone.localdate() - timedelta(days=1)
+        coleta = Coleta.objects.create(data_coleta=ontem)
+        Leitura.objects.create(
+            collection=coleta, tipo="amostra", amostra="lagoa", led="frente", replica=1,
+            medido_em=timezone.now() - timedelta(days=1), ganho=64, atime=0, astep=0, n=1, saturado=False,
+            media={channel: 20000 for channel in CHANNELS}, desvio={}, dados_originais={},
+            turbidez={}, cores=[{"porcentagem": 70} for _ in range(8)], diagnostico={},
+        )
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertEqual(d["data"], timezone.localdate().isoformat())  # a pagina continua sendo a de hoje
+        self.assertEqual(d["dados_de"], ontem.isoformat())
+        self.assertEqual(d["total_leituras"], 1)
+        self.assertIn("desconectado", d["aviso_congelado"])
+        # Uma data antiga escolhida a mao continua mostrando so aquela data.
+        vazia = self.client.get(reverse("dashboard_data"), {"data": "2026-01-01"}).json()
+        self.assertEqual(vazia["total_leituras"], 0)
 
     def test_dissolved_color_is_not_mistaken_for_a_light_change(self):
         limpa = {"status": "ok", "tensao_v": 4.15, "ntu": None, "ntu_experimental": 200.0, "calibracao_status": "pendente"}

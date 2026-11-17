@@ -99,8 +99,9 @@
         <div><p class="panel-kicker">Tempo real · amostra atual (medida a cada minuto)</p><h2>Como está a água neste momento</h2></div>
         <span class="sample-time">Medida às <strong id="ag-hora">—</strong></span>
       </div>
+      <p class="aviso-congelado" id="ag-congelado" role="status" hidden></p>
       <p class="sample-summary" id="ag-conclusao">Para que serve: saber de relance se a água da lagoa está boa, em atenção ou em alerta.</p>
-      <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+      <div class="sample-metrics ag-cartoes">
         <article class="sample-metric card-sensores" style="align-content:start;gap:14px"><span id="ag-ntu-label" style="text-transform:uppercase;letter-spacing:.07em">Turbidez · os dois sensores</span>
           <div class="sensores-medidores">
             <div class="sensor-medidor"><strong class="sensor-titulo">Sensor de turbidez</strong><svg id="ag-gauge" viewBox="-30 -24 260 134" role="img" aria-label="Medidor do sensor de turbidez em NTU"></svg><div><strong id="ag-ntu" class="sensor-valor">—</strong> <span id="ag-ntu-un" class="sensor-unidade">NTU</span></div><small id="ag-ntu-sub" class="sensor-detalhe"></small></div>
@@ -109,7 +110,6 @@
         <article class="sample-metric" id="ag-card-ph" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">pH</span><div><strong id="ag-ph" style="font-size:54px;line-height:1">—</strong></div><span class="state-badge state-ok" id="ag-ph-status" style="justify-self:start;align-self:start"><i></i>—</span><small id="ag-ph-sub">6 a 9 = faixa normal para água doce (CONAMA 357)</small></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Índice geral de qualidade</span><div><strong id="ag-iq" style="font-size:54px;line-height:1">—</strong> <small style="font-size:20px">de 100</small></div><svg id="ag-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:100px"></svg><span class="state-badge state-ok" id="ag-status" style="justify-self:start;align-self:start"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Cor da amostra</span><div style="display:flex;gap:16px;align-items:center"><svg id="ag-swatch" viewBox="0 0 88 88" aria-hidden="true" style="width:88px;flex:none"></svg><div style="display:grid;gap:4px"><strong id="ag-cor" style="font-size:24px">—</strong><small id="ag-cor-hex">—</small><small id="ag-cor-lambda">—</small></div></div></article>
-        <article class="sample-metric" id="ag-card-alerta" style="align-content:start;gap:10px;border-left:6px solid var(--line)"><span style="text-transform:uppercase;letter-spacing:.07em">Alerta principal</span><p id="ag-alerta" style="margin:0;font-size:18px;line-height:1.5;color:var(--ink)">—</p></article>
       </div>
     </section>
 

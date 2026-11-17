@@ -394,6 +394,8 @@
     renderPh(data?.ph);
     const q = data?.qualidade, tb = data?.turbidez || {};
     setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
+    const aviso = $("ag-congelado");
+    if (aviso) { aviso.hidden = !data?.aviso_congelado; aviso.textContent = data?.aviso_congelado || ""; }
     if (!q?.valida) {
       cartoesQualidade("ag", { valida: false, alerta: q?.alerta || "Ainda não há leitura válida da lagoa hoje.", sensor: q?.sensor, luz: q?.luz_bloqueada_pct });
       renderIndicadoresAmostra("ag-indicadores-body", { niveis: {}, invalida: true });
