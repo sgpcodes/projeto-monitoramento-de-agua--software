@@ -569,6 +569,7 @@ def _dados_painel(data_selecionada, leituras, metricas):
                 "turbidez_classe": (leitura.diagnostico or {}).get("turbidez"),
                 **_colunas_qualidade(indices[leitura.pk]),
                 "tensao_v": _numero(indices[leitura.pk]["sensor"]["tensao_v"]),
+                "ph": _ph(leitura)["valor"],
                 "sensor_estado": indices[leitura.pk]["sensor"]["estado_leitura"],
                 "estado": _estado(leitura, indices[leitura.pk]),
                 "saturado": leitura.saturado,
@@ -608,6 +609,7 @@ def _dados_painel(data_selecionada, leituras, metricas):
         "observacoes": observacoes,
         "diagnostico": diagnostico,
         "turbidez": turbidez,
+        "ph": _ph(atual) if atual else None,
         "espectro": espectro,
         "live": live,
     }
@@ -804,6 +806,19 @@ def amostras(request):
     diluicao = qualidade.serie_diluicao([(a["id"], a["absorbancia"]) for a in lista if a["tipo"] == "corante"])
     padrao = next((a["id"] for a in lista if a["tipo"] == "lagoa"), lista[0]["id"] if lista else None)
     return JsonResponse({"amostras": lista, "comparacao": comparar, "diluicao": diluicao, "padrao": padrao})
+
+
+def _ph(leitura):
+    """Sensor de pH de uma leitura. O valor so vale com status "ok" (firmware 2026.11.17-ph-v1)."""
+    ph = leitura.ph or {}
+    valor = ph.get("valor") if ph.get("status") == "ok" else None
+    return {
+        "valor": _numero(valor),
+        "classificacao": ph.get("classificacao") if valor is not None else None,
+        "status": ph.get("status") or "sem_dado",
+        "calibracao_status": ph.get("calibracao_status"),
+        "tensao_v": ph.get("tensao_v"),
+    }
 
 
 def _numero(valor):

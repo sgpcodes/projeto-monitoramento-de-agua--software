@@ -378,8 +378,20 @@
   }
 
   /* ---------- pagina Agora: turbidez e indice geral da ultima leitura ---------- */
+  // Cartao do pH: valor, faixa (ACIDA / NORMAL / ALCALINA) e calibracao.
+  function renderPh(ph) {
+    if (!$("ag-ph")) return;
+    const ok = ph?.valor != null;
+    setText("ag-ph", ok ? Number(ph.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
+    badge($("ag-ph-status"), ok ? ph.classificacao : ph ? `sem leitura (${ph.status})` : "sem sensor", ok && ph.classificacao === "NORMAL");
+    setText("ag-ph-sub", !ok ? "6 a 9 = faixa normal para água doce (CONAMA 357)"
+      : ph.calibracao_status === "2_pontos" ? `Calibrado com 2 soluções padrão · sensor ${ph.tensao_v} V`
+      : `Calibração ${ph.calibracao_status === "1_ponto" ? "com 1 solução padrão" : "pendente"}: valor aproximado · sensor ${ph.tensao_v} V`);
+  }
+
   function renderQualidadeAgora(data) {
     if (!$("agora-qualidade")) return;
+    renderPh(data?.ph);
     const q = data?.qualidade, tb = data?.turbidez || {};
     setText("ag-hora", data?.amostra_atual?.hora || data?.ultima_leitura || "—");
     if (!q?.valida) {
@@ -808,15 +820,15 @@
       const contam = r.contaminacao == null ? "—" : `${Math.round(r.contaminacao)}%`;
       const turb = r.turbidez == null ? "—" : `${Math.round(r.turbidez)}%${r.turbidez_classe ? ` · ${r.turbidez_classe}` : ""}`;
       const num = (v, casas) => (v == null ? "—" : Number(v).toFixed(casas));
-      const ntu = num(r.ntu, 1), tensao = num(r.tensao_v, 2), clorofila = num(r.clorofila, 3), cianobacterias = num(r.cianobacterias, 3);
+      const ntu = num(r.ntu, 1), tensao = num(r.tensao_v, 2), ph = num(r.ph, 2), clorofila = num(r.clorofila, 3), cianobacterias = num(r.cianobacterias, 3);
       const materiaOrganica = num(r.materia_organica, 3), sedimentos = num(r.sedimentos, 3);
       const indiceGeral = r.indice_geral ?? "—", status = r.status || "—";
       const estado = r.estado || (r.saturado ? "Saturada" : "Normal");
-      const csvValues = [r.hora, r.amostra, r.tipo_display, contam, turb, ntu, tensao, clorofila, cianobacterias,
+      const csvValues = [r.hora, r.amostra, r.tipo_display, contam, turb, ntu, tensao, ph, clorofila, cianobacterias,
         materiaOrganica, sedimentos, indiceGeral, status, estado];
       tr.dataset.csvValues = JSON.stringify(csvValues);
       [["time-cell", r.hora], ["sample-cell", r.amostra], ["", r.tipo_display], ["numeric-cell", contam], ["numeric-cell", turb],
-        ["numeric-cell", ntu], ["numeric-cell", tensao], ["numeric-cell", clorofila], ["numeric-cell", cianobacterias],
+        ["numeric-cell", ntu], ["numeric-cell", tensao], ["numeric-cell", ph], ["numeric-cell", clorofila], ["numeric-cell", cianobacterias],
         ["numeric-cell", materiaOrganica], ["numeric-cell", sedimentos], ["numeric-cell", indiceGeral], ["", status]].forEach(([cls, text], i) => {
         const td = tr.insertCell(); if (cls) td.className = cls;
         if (i === 2) { const b = document.createElement("span"); b.className = `type-badge type-${r.tipo}`; b.textContent = text; td.append(b); }
@@ -829,7 +841,7 @@
     });
     if (!list.length) {
       const tr = body.insertRow(); tr.dataset.empty = "true";
-      const td = tr.insertCell(); td.colSpan = 14; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
+      const td = tr.insertCell(); td.colSpan = 15; td.className = "empty-row"; td.textContent = "Nenhuma leitura recebida para esta data.";
     }
     rows = [...body.querySelectorAll("tr:not([data-empty])")];
     filterReadings();
@@ -970,7 +982,7 @@
   });
   function exportReadings(format) {
     if (!filteredRows.length) return;
-    const heads = ["Horário", "Amostra", "Tipo", "Contaminação", "Turbidez", "NTU (validado)", "Sensor turbidez (V)", "Clorofila", "Cianobact.",
+    const heads = ["Horário", "Amostra", "Tipo", "Contaminação", "Turbidez", "NTU (validado)", "Sensor turbidez (V)", "pH", "Clorofila", "Cianobact.",
       "M. orgânica", "Sedimentos", "Índice geral", "Status", "Estado"];
     const records = filteredRows.map((r) => JSON.parse(r.dataset.csvValues));
     const isCsv = format === "csv";

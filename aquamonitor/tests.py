@@ -366,6 +366,40 @@ class DashboardDataTests(TestCase):
         self.assertEqual(salva.turbidez["adc_raw"], 2290)  # dado cru preservado
         self.assertEqual(salva.dados_originais["firmware_version"], "2026.10.21-turbidez-v2")
 
+    def test_esp32_payload_with_ph_is_saved_and_shown(self):
+        payload = {
+            "data_coleta": "2026-11-17", "medido_em": "2026-11-17T10:00:00-03:00", "tipo": "amostra",
+            "amostra": "lagoa", "firmware_version": "2026.11.17-ph-v1", "ganho": 64, "saturado": False,
+            "media": {channel: 20000 for channel in CHANNELS},
+            "turbidez": {"status": "ok", "tensao_v": 3.69, "luz_bloqueada_pct": 12.0},
+            "ph": {"status": "ok", "calibracao_status": "2_pontos", "adc_raw": 1480, "tensao_v": 2.536,
+                   "desvio_mv": 4, "valor": 6.8, "classificacao": "NORMAL"},
+            "cores": [{"nome": "x", "comprimento_onda_nm": nm, "valor": 1, "porcentagem": 70}
+                      for nm in (415, 445, 480, 515, 555, 590, 630, 680)],
+            "diagnostico": {"turbidez": "LEVEMENTE TURVA", "ph": "NORMAL"},
+        }
+        import os
+        os.environ["ESP32_API_KEY"] = "chave-teste"
+        r = self.client.post(reverse("receber_leitura"), payload, content_type="application/json",
+                             HTTP_X_API_KEY="chave-teste")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Leitura.objects.get().ph["adc_raw"], 1480)
+        d = self.client.get(reverse("dashboard_data"), {"data": "2026-11-17"}).json()
+        self.assertEqual(d["ph"]["valor"], 6.8)
+        self.assertEqual(d["ph"]["classificacao"], "NORMAL")
+        self.assertEqual(d["leituras"][0]["ph"], 6.8)
+
+    def test_invalid_ph_reading_is_not_shown_as_a_value(self):
+        Leitura.objects.create(
+            collection=Coleta.objects.create(data_coleta=timezone.localdate()), tipo="amostra", amostra="lagoa",
+            led="frente", replica=1, medido_em=timezone.now(), ganho=64, atime=100, astep=999, n=20, saturado=False,
+            media={c: 20000 for c in CHANNELS}, desvio={c: 1 for c in CHANNELS}, dados_originais={},
+            ph={"status": "sem_sinal", "valor": None, "tensao_v": 0.1, "calibracao_status": "pendente"},
+        )
+        d = self.client.get(reverse("dashboard_data")).json()
+        self.assertIsNone(d["ph"]["valor"])
+        self.assertEqual(d["ph"]["status"], "sem_sinal")
+
     def test_rejects_an_invalid_date(self):
         response = self.client.get(reverse("dashboard_data"), {"data": "not-a-date"})
 

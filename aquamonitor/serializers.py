@@ -45,5 +45,6 @@ class LeituraSerializer(serializers.Serializer):
     turbidez_mv = serializers.FloatField(allow_null=True, default=None)
     dp_turbidez_mv = serializers.FloatField(allow_null=True, default=None)
     turbidez = serializers.JSONField(required=False, allow_null=True, default=None)
+    ph = serializers.JSONField(required=False, allow_null=True, default=None)
     cores = serializers.JSONField(required=False, allow_null=True, default=None)
     diagnostico = serializers.JSONField(required=False, allow_null=True, default=None)
