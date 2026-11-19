@@ -2,13 +2,14 @@ import math
 import re
 from datetime import date, timedelta
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 
-from . import qualidade
-from .models import Coleta, Leitura
+from . import laboratorio, qualidade
+from .models import AnaliseLaboratorio, Coleta, Leitura
 from .serializers import CHANNELS
 from .services import calcular_metricas
 
@@ -635,7 +636,8 @@ def _dados_painel(data_selecionada, leituras, metricas):
         "comparacao_amostras": _comparacao_amostras(atual_indices if atual else None, suja_q),
         "referencia_suja": (
             {"hora": timezone.localtime(suja_ref.medido_em).strftime("%d/%m %H:%M"),
-             "absorbancia": [_numero(v) for v in suja_q["absorbancia"]]}
+             "absorbancia": [_numero(v) for v in suja_q["absorbancia"]],
+             "porcentagens": [_numero(c.get("porcentagem")) for c in suja_ref.cores[:8]]}
             if suja_q else None
         ),
         "diluicao": _diluicao(),
@@ -761,6 +763,7 @@ def _resumo_amostra(id_, leituras, branco):
     luz = _media([r[1]["turbidez"] for r in reps])
     nir = [r[1]["qualidade"]["sedimentos"] for r in reps if r[1]["qualidade"]["sedimentos"] is not None]
     porcentagens = [_media([r[1]["porcentagens"][c] for r in reps]) for c in range(8)]
+    ph = _media([_ph(r[0])["valor"] for r in reps])
     ntu = _media(ntus)
     ix = {
         "clorofila": absorb[7] - absorb[5],
@@ -782,6 +785,9 @@ def _resumo_amostra(id_, leituras, branco):
         "turbidez_ntu": _numero(ntu),
         "turbidez_dp": _numero(_desvio(ntus)),
         "luz_bloqueada_pct": _numero(luz),
+        "ph": _numero(ph),
+        # % de luz que passou em cada cor (100% = agua limpa): o mesmo grafico do Tempo real.
+        "porcentagens": [100.0] * 8 if tipo == "branco" else [_numero(p) for p in porcentagens],
         "classe_turbidez": qualidade.classe_texto(ntu),
         "sensor": _sensor_resumo([r[1]["sensor"] for r in reps]),
         **{k: _numero(v) for k, v in ix.items()},
@@ -835,6 +841,13 @@ def amostras(request):
             a["conclusao"], a["alerta"], a["referencia_mais_semelhante"] = (
                 "Referência do cálculo (absorbância zero por definição).", "Amostra de referência.", "")
 
+    # Laudo de laboratorio mais recente de cada amostra, comparado com o aparelho.
+    laudos = {}
+    for analise in AnaliseLaboratorio.objects.filter(amostra__in=list(por_id)):
+        laudos.setdefault(analise.amostra, analise)  # ordenado do mais novo para o mais antigo
+    for a in lista:
+        a["laboratorio"] = laboratorio.comparar(laudos[a["id"]], a) if a["id"] in laudos else None
+
     # Sem "agua_boa" medida, a agua limpa (padrao) entra no lugar dela.
     boa_id = "agua_boa" if "agua_boa" in por_id else next((a["id"] for a in lista if a["tipo"] == "branco"), None)
     comparar = [i for i in (boa_id, "agua_podre") if i in por_id] + [a["id"] for a in lista if a["tipo"] == "lagoa"]
@@ -874,3 +887,39 @@ def _duracao(minutos):
 
 def _numero(valor):
     return round(valor, 4) if valor is not None else None
+
+
+def modelo_laboratorio(request):
+    """TXT em branco para o laboratorio preencher (ja com o nome da amostra)."""
+    amostra = re.sub(r"[^a-z0-9_]", "", request.GET.get("amostra", "").lower())[:20]
+    resposta = HttpResponse(laboratorio.modelo(amostra), content_type="text/plain; charset=utf-8")
+    resposta["Content-Disposition"] = f'attachment; filename="laudo-{amostra or "amostra"}.txt"'
+    return resposta
+
+
+@require_POST
+def enviar_laboratorio(request):
+    """Recebe o TXT preenchido. Um novo laudo da mesma amostra e data substitui o anterior."""
+    arquivo = request.FILES.get("arquivo")
+    if arquivo is None:
+        return JsonResponse({"erro": "Escolha o arquivo TXT do laudo."}, status=400)
+    if arquivo.size > laboratorio.TAMANHO_MAXIMO:
+        return JsonResponse({"erro": "Arquivo grande demais: o laudo deve ser um TXT simples (até 20 KB)."}, status=400)
+    bruto = arquivo.read()
+    try:
+        conteudo = bruto.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        conteudo = bruto.decode("latin-1")  # Bloco de Notas antigo do Windows
+    try:
+        dados, avisos = laboratorio.ler(conteudo, request.POST.get("amostra", ""))
+    except ValueError as erro:
+        return JsonResponse({"erro": str(erro)}, status=400)
+    amostra, data_coleta = dados.pop("amostra"), dados.pop("data_coleta", None)
+    analise, _ = AnaliseLaboratorio.objects.update_or_create(
+        amostra=amostra, data_coleta=data_coleta,
+        defaults={**{c: dados.get(c) for c in laboratorio.CAMPOS}, "laboratorio": dados.get("laboratorio", ""),
+                  "observacoes": dados.get("observacoes", ""), "arquivo": conteudo},
+    )
+    if not Leitura.objects.filter(amostra=amostra).exists():
+        avisos.insert(0, f"Ainda não há medição do aparelho com o nome \"{amostra}\": a comparação aparece quando houver.")
+    return JsonResponse({"status": "salvo", "id": analise.pk, "amostra": amostra, "avisos": avisos}, status=201)

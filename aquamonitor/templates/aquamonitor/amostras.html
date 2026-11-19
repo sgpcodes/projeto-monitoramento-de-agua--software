@@ -16,12 +16,13 @@
         </div>
       </div>
       <p class="sample-summary" id="am-conclusao">Carregando as amostras…</p>
-      <div class="sample-metrics" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+      <div class="sample-metrics am-cartoes">
         <article class="sample-metric card-sensores" style="align-content:start;gap:14px"><span id="am-ntu-label" style="text-transform:uppercase;letter-spacing:.07em">Turbidez · os dois sensores</span>
           <div class="sensores-medidores">
             <div class="sensor-medidor"><strong class="sensor-titulo">Sensor de turbidez</strong><svg id="am-gauge" viewBox="-30 -24 260 134" role="img" aria-label="Medidor do sensor de turbidez em NTU"></svg><div><strong id="am-ntu" class="sensor-valor">—</strong> <span id="am-ntu-un" class="sensor-unidade">NTU</span></div><small id="am-ntu-sub" class="sensor-detalhe"></small></div>
             <div class="sensor-medidor"><strong class="sensor-titulo">Sensor de cor</strong><svg id="am-gauge-cor" viewBox="-30 -24 260 134" role="img" aria-label="Medidor do sensor de cor em % de luz bloqueada"></svg><div><strong id="am-luz" class="sensor-valor">—</strong> <span class="sensor-unidade">luz bloqueada</span></div><small class="sensor-detalhe">0% = igual à água limpa · 100% = não passa luz</small></div>
           </div></article>
+        <article class="sample-metric" id="am-card-ph" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">pH</span><div><strong id="am-ph" style="font-size:54px;line-height:1">—</strong></div><span class="state-badge state-ok" id="am-ph-status" style="justify-self:start;align-self:start"><i></i>—</span><small id="am-ph-sub">6 a 9 = faixa normal para água doce (CONAMA 357)</small></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Índice geral de qualidade</span><div><strong id="am-iq" style="font-size:54px;line-height:1">—</strong> <small style="font-size:20px">de 100</small></div><svg id="am-sem" viewBox="0 0 90 20" aria-hidden="true" style="width:100px"></svg><span class="state-badge state-ok" id="am-status" style="justify-self:start;align-self:start"><i></i>—</span><small>80–100 bom · 50–79 atenção · abaixo de 50 alerta</small></article>
         <article class="sample-metric" style="align-content:start;gap:10px"><span style="text-transform:uppercase;letter-spacing:.07em">Cor da amostra</span><div style="display:flex;gap:16px;align-items:center"><svg id="am-swatch" viewBox="0 0 88 88" aria-hidden="true" style="width:88px;flex:none"></svg><div style="display:grid;gap:4px"><strong id="am-cor" style="font-size:24px">—</strong><small id="am-cor-hex">—</small><small id="am-cor-lambda">—</small></div></div></article>
         <article class="sample-metric" id="am-card-alerta" style="align-content:start;gap:10px;border-left:6px solid var(--line)"><span style="text-transform:uppercase;letter-spacing:.07em">Alerta principal</span><p id="am-alerta" style="margin:0;font-size:18px;line-height:1.5;color:var(--ink)">—</p></article>
@@ -29,15 +30,38 @@
     </section>
 
     <section class="panel" id="assinatura" data-reveal>
-      <div class="panel-heading"><div><p class="panel-kicker">Assinatura espectral</p><h2>Assinatura espectral</h2><p>Para que serve: comparar a "impressão digital" da amostra com a água boa e a podre. Quanto mais alto o ponto, mais a água bloqueia aquela cor. Os picos indicam o que tem na água (as faixas no topo mostram o quê).</p></div>
-        <div class="spectrum-legend" id="assin-legenda"></div></div>
-      <div class="chart-wrap tall" id="assin-wrap"><svg id="assin-chart" class="chart" role="img" aria-label="Absorbância por comprimento de onda"></svg></div>
+      <div class="panel-heading">
+        <div><p class="panel-kicker">Espectro</p><h2>Quanta luz de cada cor atravessa a amostra</h2><p id="assin-descricao">Para que serve: comparar a amostra com a água limpa e com a água suja.</p></div>
+        <div class="segmented" role="tablist" aria-label="Unidade do espectro" id="assin-modo">
+          <button type="button" role="tab" class="seg-btn is-active" data-modo="pct" aria-selected="true">% de luz</button>
+          <button type="button" role="tab" class="seg-btn" data-modo="abs" aria-selected="false">Absorbância</button>
+        </div>
+      </div>
+      <div class="spectrum-legend espectro-cores" id="assin-legenda"></div>
+      <div class="chart-wrap tall" id="assin-wrap"><svg id="assin-chart" class="chart" role="img" aria-label="Espectro da amostra por cor"></svg></div>
       <div class="chart-empty" id="assin-empty" hidden><strong>Aguardando amostras</strong><span>Grave a água limpa (BOOT → 1) e meça uma amostra com nome (ex.: n lagoa_p1).</span></div>
+      {% include "aquamonitor/_como_ler_espectro.html" %}
     </section>
 
     <section class="panel" id="indicadores" data-reveal>
       <div class="panel-heading"><div><p class="panel-kicker">Indicadores</p><h2>O que esta amostra indica</h2><p>Para que serve: dizer, em palavras, o que tem nesta água e em que quantidade. Barra verde = pouco; amarela = moderado; vermelha = muito. <small>Fotos: Wikimedia Commons (Algal bloom at Anderson Lake State Park, CC BY-SA 4.0; Lake Burley Griffin cyanobacteria, CC BY-SA 3.0; Some Tea With Your River, Sir?, CC BY 2.0; Muddy water, Belfast, CC BY-SA 2.0).</small></p></div></div>
       <div class="sample-metrics" id="indicadores-body" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
+    </section>
+
+    <section class="panel" id="laboratorio" data-reveal>
+      <div class="panel-heading"><div><p class="panel-kicker">Laboratório</p><h2>Aparelho × laboratório</h2><p>Para que serve: conferir se o aparelho dá o mesmo resultado que a análise de laboratório da mesma amostra. Baixe o modelo, preencha com o laudo e envie o arquivo.</p></div></div>
+      <form class="lab-form" id="lab-form" method="post" action="{% url 'enviar_laboratorio' %}" enctype="multipart/form-data" data-modelo-url="{% url 'modelo_laboratorio' %}">
+        {% csrf_token %}
+        <a class="export-button lab-passo" id="lab-modelo" href="{% url 'modelo_laboratorio' %}" download>1. Baixar modelo (TXT)</a>
+        <label class="export-button lab-passo lab-arquivo" for="lab-arquivo">2. Escolher o laudo preenchido<input id="lab-arquivo" name="arquivo" type="file" accept=".txt,text/plain" required></label>
+        <span class="lab-nome-arquivo" id="lab-nome-arquivo">nenhum arquivo escolhido</span>
+        <button class="lab-enviar" type="submit">3. Enviar e comparar</button>
+      </form>
+      <p class="lab-status" id="lab-status" role="status" hidden></p>
+      <div id="lab-resultado">
+        <p class="sample-summary lab-cabecalho" id="lab-resumo"></p>
+        <div class="table-scroll"><table class="readings-table lab-tabela"><thead><tr><th>Parâmetro</th><th>Laboratório</th><th>Aparelho</th><th>Resultado</th><th>Observação</th></tr></thead><tbody id="lab-tabela-body"></tbody></table></div>
+      </div>
     </section>
 
     <div class="two-col" id="comparacao">

@@ -132,28 +132,21 @@
 
     <section class="panel" id="espectro" data-reveal>
       <div class="panel-heading">
-        <div><p class="panel-kicker">Espectro</p><h2>Assinatura espectral atual</h2><p id="spectrum-description">Para que serve: descobrir o que está sujando a água agora. 100% = igual à água limpa; quanto mais baixo, mais suja.</p></div>
-        <div>
-        <div class="spectrum-legend" aria-label="Canais espectrais">
-          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
-        </div>
-        <div class="segmented" role="tablist" aria-label="Unidade do espectro" id="spectrum-mode">
-          <button type="button" role="tab" class="seg-btn is-active" data-modo="pct" aria-selected="true">% de luz</button>
-          <button type="button" role="tab" class="seg-btn" data-modo="contagem" aria-selected="false">Contagem crua</button>
-        </div>
+        <div><p class="panel-kicker">Espectro</p><h2>Quanta luz de cada cor atravessa a água</h2><p id="spectrum-description">Para que serve: ver o que está sujando a água agora.</p></div>
+        <div class="segmented" role="tablist" aria-label="Agora ou ao longo do dia" id="spectrum-mode">
+          <button type="button" role="tab" class="seg-btn is-active" aria-selected="true">Agora</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="1" aria-selected="false">1h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="6" aria-selected="false">6h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="12" aria-selected="false">12h</button>
+          <button type="button" role="tab" class="seg-btn" data-horas="24" aria-selected="false">24h</button>
         </div>
       </div>
-      <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Leitura por canal de cor"></svg></div>
-      <div class="chart-empty" id="spectrum-empty" hidden><strong>Aguardando amostra calibrada</strong><span>O espectro aparece quando houver uma leitura válida.</span></div>
-      <div class="spectrum-legend" id="spectrum-chave" style="padding:4px 28px 24px;flex-wrap:wrap;gap:10px 22px">
-        <span><i style="--c:#7f8c8d"></i><b>Todas as cores caindo juntas</b>&nbsp;= água turva (barro, sujeira)</span>
-        <span><i style="--c:#7952c7"></i><b>Queda no roxo</b>&nbsp;= água amarelada (folhas, esgoto)</span>
-        <span><i style="--c:#4c78ed"></i><b>Queda no azul</b>&nbsp;= algas ou água amarelada</span>
-        <span><i style="--c:#18a6d5"></i><b>Queda no ciano</b>&nbsp;= pigmentos de algas</span>
-        <span><i style="--c:#21b98a"></i><b>Queda no verde</b>&nbsp;= barro, partículas</span>
-        <span><i style="--c:#e8a926"></i><b>Queda no amarelo / laranja</b>&nbsp;= barro ou cianobactérias</span>
-        <span><i style="--c:#e34e5a"></i><b>Queda no vermelho</b>&nbsp;= algas (clorofila)</span>
+      <div class="spectrum-legend espectro-cores" id="spectrum-cores" aria-label="Cor de cada linha" hidden>
+        <span><i style="--c:#7952c7"></i>Violeta 415</span><span><i style="--c:#4c78ed"></i>Azul 445</span><span><i style="--c:#18a6d5"></i>Ciano 480</span><span><i style="--c:#21b98a"></i>Verde 515</span><span><i style="--c:#94bf36"></i>Verde-amarelo 555</span><span><i style="--c:#e8a926"></i>Amarelo 590</span><span><i style="--c:#ed7845"></i>Laranja 630</span><span><i style="--c:#e34e5a"></i>Vermelho 680</span>
       </div>
+      <div class="chart-wrap tall" id="spectrum-wrap"><svg id="spectrum-chart" class="chart" role="img" aria-label="Porcentagem de luz que passou em cada cor"></svg></div>
+      <div class="chart-empty" id="spectrum-empty" hidden><strong id="spectrum-empty-titulo">Aguardando leitura válida da lagoa</strong><span id="spectrum-empty-texto">O espectro aparece quando houver uma leitura válida.</span></div>
+      {% include "aquamonitor/_como_ler_espectro.html" %}
     </section>
 
     <div class="two-col">
@@ -175,34 +168,6 @@
         <div class="chart-empty" id="scatter-empty" hidden><strong>Sem leituras válidas do sensor de turbidez</strong><span>O gráfico aparece quando o sensor de turbidez enviar tensões sem defeito.</span></div>
       </section>
     </div>
-
-    <section class="panel" id="evolucao-espectral" data-reveal>
-      <div class="panel-heading">
-        <div><p class="panel-kicker">Análise espectral</p><h2>Evolução espectral no tempo</h2><p>Para que serve: ver quando e por que a água mudou ao longo do dia. Cada linha é uma cor; quando ela desce, a água bloqueou mais aquela cor.</p></div>
-        <div>
-        <div class="spectrum-legend" aria-label="Canais espectrais">
-          <span><i style="--c:#7952c7"></i>F1 415</span><span><i style="--c:#4c78ed"></i>F2 445</span><span><i style="--c:#18a6d5"></i>F3 480</span><span><i style="--c:#21b98a"></i>F4 515</span><span><i style="--c:#94bf36"></i>F5 555</span><span><i style="--c:#e8a926"></i>F6 590</span><span><i style="--c:#ed7845"></i>F7 630</span><span><i style="--c:#e34e5a"></i>F8 680</span>
-        </div>
-        <div class="segmented" role="tablist" aria-label="Período" id="periodo-espectral">
-          <button type="button" role="tab" class="seg-btn" data-horas="1" aria-selected="false">1h</button>
-          <button type="button" role="tab" class="seg-btn" data-horas="6" aria-selected="false">6h</button>
-          <button type="button" role="tab" class="seg-btn" data-horas="12" aria-selected="false">12h</button>
-          <button type="button" role="tab" class="seg-btn is-active" data-horas="24" aria-selected="true">24h</button>
-        </div>
-        </div>
-      </div>
-      <div class="chart-wrap tall" id="spectral-time-wrap"><svg id="spectral-time-chart" class="chart" role="img" aria-label="Evolução de cada cor ao longo do tempo"></svg></div>
-      <div class="chart-empty" id="spectral-time-empty" hidden><strong>Ainda não há medições da lagoa</strong><span>O gráfico aparece com pelo menos duas médias de 10 minutos.</span></div>
-      <div class="spectrum-legend" id="evolucao-chave" style="padding:4px 28px 24px;flex-wrap:wrap;gap:10px 22px">
-        <span><i style="--c:#7f8c8d"></i><b>Todas as cores caindo juntas</b>&nbsp;= água turva (barro, sujeira)</span>
-        <span><i style="--c:#7952c7"></i><b>Queda no roxo</b>&nbsp;= água amarelada (folhas, esgoto)</span>
-        <span><i style="--c:#4c78ed"></i><b>Queda no azul</b>&nbsp;= algas ou água amarelada</span>
-        <span><i style="--c:#18a6d5"></i><b>Queda no ciano</b>&nbsp;= pigmentos de algas</span>
-        <span><i style="--c:#21b98a"></i><b>Queda no verde</b>&nbsp;= barro, partículas</span>
-        <span><i style="--c:#e8a926"></i><b>Queda no amarelo / laranja</b>&nbsp;= barro ou cianobactérias</span>
-        <span><i style="--c:#e34e5a"></i><b>Queda no vermelho</b>&nbsp;= algas (clorofila)</span>
-      </div>
-    </section>
 
     <div class="two-col">
       <section class="panel" data-reveal>

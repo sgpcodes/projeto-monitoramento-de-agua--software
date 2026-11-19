@@ -62,3 +62,29 @@ class Leitura(models.Model):
 
     def __str__(self):
         return f"{self.amostra} · {self.medido_em:%d/%m/%Y %H:%M}"
+
+
+class AnaliseLaboratorio(models.Model):
+    """Laudo de laboratorio de uma amostra, enviado como TXT na pagina Amostras.
+    Serve para comparar com o que o aparelho mediu na mesma amostra."""
+
+    amostra = models.CharField(max_length=20, db_index=True)
+    data_coleta = models.DateField(null=True, blank=True)
+    laboratorio = models.CharField(max_length=120, blank=True)
+    turbidez_ntu = models.FloatField(null=True, blank=True)
+    ph = models.FloatField(null=True, blank=True)
+    clorofila_a_ug_l = models.FloatField(null=True, blank=True)
+    cianobacterias_cel_ml = models.FloatField(null=True, blank=True)
+    cor_verdadeira_mg_pt_l = models.FloatField(null=True, blank=True)
+    solidos_suspensos_mg_l = models.FloatField(null=True, blank=True)
+    observacoes = models.TextField(blank=True)
+    arquivo = models.TextField()  # o TXT como chegou
+    enviado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-enviado_em"]
+        verbose_name = "análise de laboratório"
+        verbose_name_plural = "análises de laboratório"
+
+    def __str__(self):
+        return f"{self.amostra} · laboratório {self.data_coleta or 'sem data'}"

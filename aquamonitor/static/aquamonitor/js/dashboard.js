@@ -122,62 +122,74 @@
     markDrawn("t");
   }
 
-  let modoEspectro = "pct";
-  const descricaoEspectro = $("spectrum-description")?.textContent;
-  function renderSpectrumChart(data) {
-    let sp = data?.espectro;
-    if (sp && modoEspectro === "contagem" && Array.isArray(sp.contagens)) {
-      sp = { ...sp, unidade: "Contagem digital", semanas: [{ ...sp.semanas[0], valores: sp.contagens }] };
-      if ($("spectrum-description")) $("spectrum-description").textContent = "Para que serve: conferir a lanterna. Mostra a luz que chega em cada cor sem comparar com a água limpa; para analisar a água, volte para % de luz.";
-    } else if ($("spectrum-description") && descricaoEspectro) {
-      $("spectrum-description").textContent = descricaoEspectro;
-    }
-    const chart = $("spectrum-chart");
-    const values = sp?.semanas?.[0]?.valores, labels = sp?.rotulos;
-    const ok = Array.isArray(values) && values.length > 0 && values.every(Number.isFinite);
-    setChartState("spectrum-wrap", "spectrum-empty", ok);
-    if (!chart || !ok) return;
+  /* ---------- espectro: % de luz que passou em cada cor (Tempo real e Amostras) ---------- */
+  // series[0] e a principal (linha colorida); as outras sao referencias tracejadas.
+  function desenharEspectro(chart, series, idAnim) {
+    const P0 = series[0];
     const W = chart.clientWidth || 900, H = chart.clientHeight || 320, m = { t: 24, r: 24, b: 58, l: 66 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
-    const counts = sp.unidade === "Contagem digital", pct = sp.unidade === "% de luz que passou";
-    let min = Math.min(...values), max = Math.max(...values);
-    if (pct) { min = 0; max = tetoRedondo(Math.max(100, max + 5), 25); } // 0 a 125%: a agua limpa e a linha dos 100%
-    else if (counts) { min = 0; max = Math.max(max, 1) * 1.12; } // contagem: eixo comeca em 0
-    else {
-      if (min === max) max += Math.max(Math.abs(max) * 0.1, 0.1);
-      const pad = Math.max((max - min) * 0.12, max * 0.04); min = Math.max(0, min - pad); max += pad;
-      if ($("spectrum-description")) $("spectrum-description").textContent = `${sp.unidade || "Absorbância (u.a.)"} por comprimento de onda (nm).`;
-    }
-    const x = (i) => m.l + (values.length === 1 ? pw / 2 : (i / (values.length - 1)) * pw);
-    const y = (v) => m.t + ((max - v) / (max - min)) * ph;
+    const todos = series.flatMap((s) => s.valores).filter(Number.isFinite);
+    const max = tetoRedondo(Math.max(100, Math.max(...todos) + 5), 25); // a agua limpa e a linha dos 100%
+    const x = (i) => m.l + (i / 7) * pw, y = (v) => m.t + ((max - clamp(v, 0, max)) / max) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
-    for (let i = 0; i <= 4; i++) {
-      const v = max - ((max - min) * i) / 4, ly = y(v);
-      addSVG(chart, "line", { x1: m.l, y1: ly, x2: W - m.r, y2: ly, class: "grid-line" });
-      svgText(chart, m.l - 10, ly + 4, counts ? Math.round(v).toLocaleString("pt-BR") : pct ? `${Math.round(v)}%` : v.toFixed(2), { class: "axis-text", "text-anchor": "end" });
+    for (let v = 0; v <= max; v += 25) {
+      addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line" });
+      svgText(chart, m.l - 10, y(v) + 4, `${Math.round(v)}%`, { class: "axis-text", "text-anchor": "end" });
     }
-    if (pct) {
-      addSVG(chart, "line", { x1: m.l, y1: y(100), x2: W - m.r, y2: y(100), class: "grid-line", stroke: "#1f9d74", "stroke-dasharray": "6 5" });
-      svgText(chart, W - m.r, y(100) - 6, "água limpa (100%)", { class: "axis-text", "text-anchor": "end" });
-    }
-    const P = values.map((v, i) => ({ x: x(i), y: y(v) }));
+    addSVG(chart, "line", { x1: m.l, y1: y(100), x2: W - m.r, y2: y(100), class: "grid-line", stroke: VERDE, "stroke-dasharray": "6 5" });
+    svgText(chart, W - m.r, y(100) - 6, "água limpa (100%)", { class: "axis-text", "text-anchor": "end" });
+    ONDAS.forEach((nm, i) => {
+      svgText(chart, x(i), H - 30, NOMES_CORES[i], { class: "axis-text", "text-anchor": "middle" });
+      svgText(chart, x(i), H - 12, `${nm} nm`, { class: "axis-text", "text-anchor": "middle" });
+    });
+    // Referencias (agua suja etc.): linha cinza tracejada com o nome no fim.
+    series.slice(1).forEach((s) => {
+      if (!s.valores.every(Number.isFinite)) return;
+      addSVG(chart, "path", { d: s.valores.map((v, i) => `${i ? "L" : "M"} ${x(i)} ${y(v)}`).join(" "), fill: "none", stroke: s.cor || "#7f8c8d", "stroke-width": 2, "stroke-dasharray": "7 5", opacity: 0.85 });
+      s.valores.forEach((v, i) => addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 3.5, fill: s.cor || "#7f8c8d", class: "series-dot", "data-tip": `${s.nome} · ${NOMES_CORES[i]} ${ONDAS[i]} nm: ${fmt(v, 1)}% da luz passou` }));
+      svgText(chart, x(7) - 8, y(s.valores[7]) - 10, s.nome, { class: "axis-label", "text-anchor": "end" });
+    });
+    const P = P0.valores.map((v, i) => ({ x: x(i), y: y(v) }));
     const defs = addSVG(chart, "defs");
-    const g = addSVG(defs, "linearGradient", { id: "sf", x1: 0, y1: 0, x2: 0, y2: 1 });
+    const g = addSVG(defs, "linearGradient", { id: `${chart.id}-fill`, x1: 0, y1: 0, x2: 0, y2: 1 });
     addSVG(g, "stop", { offset: "0%", "stop-color": "#19b5c8", "stop-opacity": ".28" });
     addSVG(g, "stop", { offset: "100%", "stop-color": "#19b5c8", "stop-opacity": "0" });
-    const area = P.slice(0, -1).map((p, i) => { const n = P[i + 1], mid = (p.x + n.x) / 2; return `${i ? "" : `M ${p.x} ${p.y}`} C ${mid} ${p.y}, ${mid} ${n.y}, ${n.x} ${n.y}`; }).join(" ");
-    addSVG(chart, "path", { d: `${area} L ${P.at(-1).x} ${H - m.b} L ${P[0].x} ${H - m.b} Z`, fill: "url(#sf)", class: animClass("s", "anim-fade") });
+    const curva = P.slice(0, -1).map((p, i) => { const n = P[i + 1], mid = (p.x + n.x) / 2; return `${i ? "" : `M ${p.x} ${p.y}`} C ${mid} ${p.y}, ${mid} ${n.y}, ${n.x} ${n.y}`; }).join(" ");
+    addSVG(chart, "path", { d: `${curva} L ${P.at(-1).x} ${H - m.b} L ${P[0].x} ${H - m.b} Z`, fill: `url(#${chart.id}-fill)`, class: animClass(idAnim, "anim-fade") });
     P.slice(0, -1).forEach((p, i) => {
       const n = P[i + 1], mid = (p.x + n.x) / 2;
-      addSVG(chart, "path", { d: `M ${p.x} ${p.y} C ${mid} ${p.y}, ${mid} ${n.y}, ${n.x} ${n.y}`, stroke: colors[i], class: `series-line ${animClass("s", "anim-line")}`, pathLength: 1, style: `animation-delay:${i * 0.18}s` });
+      addSVG(chart, "path", { d: `M ${p.x} ${p.y} C ${mid} ${p.y}, ${mid} ${n.y}, ${n.x} ${n.y}`, stroke: colors[i], class: `series-line ${animClass(idAnim, "anim-line")}`, pathLength: 1, style: `animation-delay:${i * 0.18}s` });
     });
-    values.forEach((v, i) => {
-      svgText(chart, x(i), H - 30, sp.etiquetas?.[i] || labels[i], { class: "axis-text", "text-anchor": "middle" });
-      svgText(chart, x(i), H - 12, `${labels[i]} nm`, { class: "axis-text", "text-anchor": "middle" });
-      const pc = sp.semanas[0].porcentagens?.[i];
-      const txt = pct ? `${fmt(v, 1)}% da luz passou` : counts ? `${fmt(v)} contagens${pc == null ? "" : ` · ${pc}%`}` : `absorbância ${v.toFixed(4)}`;
-      addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 6, fill: "#fff", stroke: colors[i], class: `series-dot ${animClass("s", "anim-fade")}`, "data-tip": `${sp.etiquetas?.[i] || NOMES_CORES[i]} · ${labels[i]} nm · ${txt}` });
+    P0.valores.forEach((v, i) => {
+      const cont = P0.contagens?.[i];
+      addSVG(chart, "circle", { cx: x(i), cy: y(v), r: 6, fill: "#fff", stroke: colors[i], class: `series-dot ${animClass(idAnim, "anim-fade")}`,
+        "data-tip": `${P0.nome} · ${NOMES_CORES[i]} ${ONDAS[i]} nm: ${fmt(v, 1)}% da luz passou${Number.isFinite(cont) ? ` (${fmt(Math.round(cont))} contagens)` : ""}` });
     });
-    markDrawn("s");
+    markDrawn(idAnim);
+  }
+  const porcentagemDe = (absorb) => (Array.isArray(absorb) ? absorb.map((a) => (Number.isFinite(a) ? 100 * Math.pow(10, -a) : null)) : null);
+
+  // Tempo real: um painel so, com "Agora" (por cor) e o mesmo espectro ao longo do dia.
+  let modoEspectro = "agora", horasEspectro = 24;
+  const TEXTO_ESPECTRO = {
+    agora: "Para que serve: ver o que está sujando a água agora. Cada ponto é uma cor de luz: 100% = passou tanto quanto na água limpa; quanto mais baixo, mais a água bloqueou aquela cor.",
+    tempo: "Para que serve: ver quando a água mudou. Cada linha é uma cor de luz; quando uma linha desce, a água passou a bloquear mais aquela cor naquele horário.",
+  };
+  function renderEspectro(data = ultimosDados) {
+    const chart = $("spectrum-chart"); if (!chart) return;
+    const agora = modoEspectro === "agora";
+    setText("spectrum-description", TEXTO_ESPECTRO[agora ? "agora" : "tempo"]);
+    if ($("spectrum-cores")) $("spectrum-cores").hidden = agora;
+    if (!agora) { renderSpectralTime(data?.serie || []); return; }
+    const valores = data?.espectro?.porcentagens || data?.espectro?.semanas?.[0]?.porcentagens;
+    const ok = Array.isArray(valores) && valores.length === 8 && valores.every(Number.isFinite);
+    setText("spectrum-empty-titulo", "Aguardando leitura válida da lagoa");
+    setText("spectrum-empty-texto", "O espectro aparece quando houver uma leitura válida.");
+    setChartState("spectrum-wrap", "spectrum-empty", ok);
+    if (!ok) return;
+    const series = [{ nome: "Lagoa agora", valores, contagens: data.espectro.contagens }];
+    const suja = data.referencia_suja?.porcentagens || porcentagemDe(data.referencia_suja?.absorbancia);
+    if (suja?.every(Number.isFinite)) series.push({ nome: "água suja de referência", valores: suja, cor: "#a26a2a" });
+    desenharEspectro(chart, series, "s");
   }
 
   let modoCanais = "atual";
@@ -240,26 +252,25 @@
     }
   }
 
-  let horasEspectro = 24, ultimaSerieEspectral = [];
   const minutos = (hora) => { const [h, mm] = hora.split(":").map(Number); return h * 60 + mm; };
-  function renderSpectralTime(serie = ultimaSerieEspectral) {
-    ultimaSerieEspectral = serie;
-    const chart = $("spectral-time-chart");
+  function renderSpectralTime(serie) {
+    const chart = $("spectrum-chart");
     const fim = serie.length ? minutos(serie.at(-1).hora) : 0;
     const pts = serie.filter((p) => Array.isArray(p.porcentagens) && fim - minutos(p.hora) <= horasEspectro * 60);
-    setChartState("spectral-time-wrap", "spectral-time-empty", pts.length > 1);
+    setText("spectrum-empty-titulo", "Ainda não há medições suficientes neste período");
+    setText("spectrum-empty-texto", "O gráfico aparece com pelo menos duas médias de 10 minutos.");
+    setChartState("spectrum-wrap", "spectrum-empty", pts.length > 1);
     if (!chart || pts.length < 2) return;
     const W = chart.clientWidth || 900, H = chart.clientHeight || 320, m = { t: 20, r: 24, b: 34, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
     const todos = pts.flatMap((p) => p.porcentagens).filter(Number.isFinite);
     const max = tetoRedondo(Math.max(100, ...todos), 25);
     const x = (i) => m.l + (i / (pts.length - 1)) * pw, y = (v) => m.t + ((max - clamp(v, 0, max)) / max) * ph;
     chart.replaceChildren(); chart.setAttribute("viewBox", `0 0 ${W} ${H}`); chart.setAttribute("preserveAspectRatio", "none");
-    for (let i = 0; i <= 4; i++) {
-      const v = max - (max * i) / 4;
+    for (let v = 0; v <= max; v += 25) {
       addSVG(chart, "line", { x1: m.l, y1: y(v), x2: W - m.r, y2: y(v), class: "grid-line" });
       svgText(chart, m.l - 10, y(v) + 4, `${Math.round(v)}%`, { class: "axis-text", "text-anchor": "end" });
     }
-    addSVG(chart, "line", { x1: m.l, y1: y(100), x2: W - m.r, y2: y(100), class: "grid-line", stroke: "#1f9d74", "stroke-dasharray": "6 5" });
+    addSVG(chart, "line", { x1: m.l, y1: y(100), x2: W - m.r, y2: y(100), class: "grid-line", stroke: VERDE, "stroke-dasharray": "6 5" });
     svgText(chart, W - m.r, y(100) - 6, "água limpa (100%)", { class: "axis-text", "text-anchor": "end" });
     const passo = passoRotulo(pts.length);
     pts.forEach((p, i) => { if (i % passo === 0) svgText(chart, x(i), H - 10, p.hora, { class: "axis-text", "text-anchor": "middle" }); });
@@ -272,7 +283,11 @@
         "data-tip": `${NOMES_CORES[c]} · ${pts[iu].hora}: ${fmt(vu, 1)}% da luz passou` });
     }
   }
-  abas("#periodo-espectral", (btn) => { horasEspectro = Number(btn.dataset.horas); renderSpectralTime(); });
+  abas("#spectrum-mode", (btn) => {
+    modoEspectro = btn.dataset.horas ? "tempo" : "agora";
+    if (btn.dataset.horas) horasEspectro = Number(btn.dataset.horas);
+    drawn.delete("s"); renderEspectro();
+  });
 
   /* ---------- evolucao ao longo do dia (abas) ---------- */
   // Faixas iguais as do ESP32: a linha tracejada marca onde a palavra muda.
@@ -329,7 +344,6 @@
   }
   abas("#evolucao", (btn) => { indiceAtual = btn.dataset.index; renderSeriesChart(); });
   let ultimosDados = null;
-  abas("#spectrum-mode", (btn) => { modoEspectro = btn.dataset.modo; drawn.delete("s"); renderSpectrumChart(ultimosDados); });
   abas("#canais-mode", (btn) => { modoCanais = btn.dataset.canais; renderLiveChart(ultimosDados); });
 
   /* ---------- validacao: sensor de cor x sensor de turbidez ---------- */
@@ -379,12 +393,12 @@
 
   /* ---------- pagina Agora: turbidez e indice geral da ultima leitura ---------- */
   // Cartao do pH: valor, faixa (ACIDA / NORMAL / ALCALINA) e calibracao.
-  function renderPh(ph) {
-    if (!$("ag-ph")) return;
+  function renderPh(ph, p = "ag") {
+    if (!$(`${p}-ph`)) return;
     const ok = ph?.valor != null;
-    setText("ag-ph", ok ? Number(ph.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
-    badge($("ag-ph-status"), ok ? ph.classificacao : ph ? `sem leitura (${ph.status})` : "sem sensor", ok && ph.classificacao === "NORMAL");
-    setText("ag-ph-sub", !ok ? "6 a 9 = faixa normal para água doce (CONAMA 357)"
+    setText(`${p}-ph`, ok ? Number(ph.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
+    badge($(`${p}-ph-status`), ok ? ph.classificacao : ph?.status === "sem_dado" ? "sem leitura" : ph ? `sem leitura (${ph.status})` : "sem sensor", ok && ph.classificacao === "NORMAL");
+    setText(`${p}-ph-sub`, !ok || ph.sub ? ph?.sub || "6 a 9 = faixa normal para água doce (CONAMA 357)"
       : ph.calibracao_status === "2_pontos" ? `Calibrado com 2 soluções padrão · sensor ${ph.tensao_v} V`
       : `Calibração ${ph.calibracao_status === "1_ponto" ? "com 1 solução padrão" : "pendente"}: valor aproximado · sensor ${ph.tensao_v} V`);
   }
@@ -530,20 +544,39 @@
     setText("am-leitura", a.padrao ? `padrão gravado em ${a.leitura}` : `${a.leitura} · ${a.repeticoes} repetiç${a.repeticoes === 1 ? "ão" : "ões"}`);
     setText("am-conclusao", a.conclusao || "");
     cartoesQualidade("am", { ntu: a.turbidez_ntu, luz: a.luz_bloqueada_pct, iq: a.indice_geral, status: a.status, cor: a.cor, alerta: a.alerta, sensor: a.sensor });
+    renderPh(a.ph == null ? { status: "sem_dado", sub: "Sem leitura de pH nesta amostra (sensor de pH desligado ou firmware antigo)." }
+      : { valor: a.ph, classificacao: a.ph < 6 ? "ÁCIDA" : a.ph > 9 ? "ALCALINA" : "NORMAL", sub: `Média das ${a.repeticoes} repetições · 6 a 9 = faixa normal (CONAMA 357)` }, "am");
   }
 
 
+  let modoAssin = "pct";
+  abas("#assin-modo", (btn) => { modoAssin = btn.dataset.modo; drawn.delete("assin"); renderAssinatura(); });
+  function legendaSeries(series) {
+    const leg = $("assin-legenda");
+    if (leg) leg.replaceChildren(...series.map((s) => { const sp = document.createElement("span"); const i = document.createElement("i"); i.style.setProperty("--c", s.cor); sp.append(i, s.nome); return sp; }));
+  }
   function renderAssinatura() {
     const chart = $("assin-chart"), lista = amostrasDados?.amostras || [];
     const a = amostraSel(), boa = lista.find((x) => x.id === "agua_boa"), podre = lista.find((x) => x.id === "agua_podre");
+    if (modoAssin === "pct") {
+      setText("assin-descricao", "Para que serve: comparar a amostra com a água limpa (linha dos 100%) e com a água suja. Quanto mais baixo o ponto, mais a amostra bloqueou aquela cor.");
+      const series = [];
+      if (a?.porcentagens?.every(Number.isFinite)) series.push({ nome: a.nome, valores: a.porcentagens, cor: COR_SEL });
+      if (series.length && boa && a.id !== "agua_boa" && boa.porcentagens?.every(Number.isFinite)) series.push({ nome: "Água boa", valores: boa.porcentagens, cor: COR_BOA });
+      if (series.length && podre && a.id !== "agua_podre" && podre.porcentagens?.every(Number.isFinite)) series.push({ nome: "Água podre", valores: podre.porcentagens, cor: COR_PODRE });
+      setChartState("assin-wrap", "assin-empty", series.length > 0);
+      legendaSeries(series);
+      if (chart && series.length) desenharEspectro(chart, series, "assin");
+      return;
+    }
+    setText("assin-descricao", "Para que serve: ver a \"impressão digital\" da amostra. Quanto mais alto o ponto, mais a água bloqueia aquela cor; as faixas no topo mostram o que costuma causar cada pico.");
     const series = [];
     if (a) series.push({ nome: a.nome, cor: COR_SEL, v: a.absorbancia, w: 3.2, sel: true, nir: a.sedimentos });
     if (boa && a?.id !== "agua_boa") series.push({ nome: "Água boa", cor: COR_BOA, v: boa.absorbancia, w: 2.2, nir: boa.sedimentos });
     if (podre && a?.id !== "agua_podre") series.push({ nome: "Água podre", cor: COR_PODRE, v: podre.absorbancia, w: 2.2, nir: podre.sedimentos });
     const ok = series.length > 0 && series[0].v.every(Number.isFinite);
     setChartState("assin-wrap", "assin-empty", ok);
-    const leg = $("assin-legenda");
-    if (leg) leg.replaceChildren(...series.map((s) => { const sp = document.createElement("span"); const i = document.createElement("i"); i.style.setProperty("--c", s.cor); sp.append(i, s.nome); return sp; }));
+    legendaSeries(series);
     if (!chart || !ok) return;
     const comNir = series.some((s) => Number.isFinite(s.nir));
     const W = chart.clientWidth || 900, H = chart.clientHeight || 340, m = { t: 52, r: 24, b: 40, l: 58 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
@@ -761,8 +794,67 @@
   }); });
   $("am-busca")?.addEventListener("input", renderTabelaAmostras);
 
+  /* ---------- laudo de laboratorio: aparelho x laboratorio ---------- */
+  const labForm = $("lab-form");
+  const RESULTADO_LAB = { true: ["mesmo resultado", "state-ok"], false: ["diferente", "state-erro"], null: ["sem comparação", "state-neutro"] };
+  function valorLab(v, id, unidade) {
+    if (v == null) return "—";
+    const casas = unidade === "índice" ? 3 : id === "cianobacterias_cel_ml" ? 0 : id === "ph" ? 2 : 1;
+    return `${fx(v, casas)}${unidade && unidade !== "índice" ? ` ${unidade}` : unidade === "índice" ? " (índice)" : ""}`;
+  }
+  function renderLaboratorio() {
+    if (!labForm) return;
+    const a = amostraSel(), lab = a?.laboratorio, body = $("lab-tabela-body");
+    const modelo = new URL(labForm.dataset.modeloUrl, location.href);
+    if (a) modelo.searchParams.set("amostra", a.id);
+    $("lab-modelo").href = modelo.pathname + modelo.search;
+    body.replaceChildren();
+    if (!lab) {
+      setText("lab-resumo", a ? `Nenhum laudo de laboratório enviado para ${a.nome} ainda.` : "Escolha uma amostra.");
+      const td = body.insertRow().insertCell(); td.colSpan = 5; td.className = "empty-row";
+      td.textContent = "Depois de enviar o laudo, cada resultado do laboratório aparece aqui ao lado do que o aparelho mediu.";
+      return;
+    }
+    setText("lab-resumo", [`Laudo${lab.laboratorio ? ` de ${lab.laboratorio}` : ""}${lab.data_coleta ? `, coleta de ${lab.data_coleta}` : ""} (enviado em ${lab.enviado_em}).`,
+      lab.resumo, lab.aviso_data, lab.observacoes ? `Observações do laboratório: ${lab.observacoes}` : ""].filter(Boolean).join(" "));
+    lab.linhas.forEach((l) => {
+      const tr = body.insertRow();
+      tr.insertCell().textContent = l.parametro; tr.cells[0].className = "sample-cell";
+      tr.insertCell().textContent = `${valorLab(l.laboratorio, l.id, l.unidade)}${l.nivel_laboratorio ? ` · ${l.nivel_laboratorio}` : ""}`;
+      tr.insertCell().textContent = `${valorLab(l.aparelho, l.id, l.unidade_aparelho)}${l.nivel_aparelho ? ` · ${l.nivel_aparelho}` : ""}`;
+      const [texto, classe] = RESULTADO_LAB[l.concorda], st = document.createElement("span");
+      st.className = `state-badge ${classe}`; st.append(document.createElement("i"), document.createTextNode(texto));
+      tr.insertCell().append(st);
+      tr.insertCell().textContent = l.nota;
+    });
+  }
+  function avisoLab(texto, erro) {
+    const el = $("lab-status"); if (!el) return;
+    el.hidden = !texto; el.textContent = texto || ""; el.classList.toggle("is-erro", Boolean(erro));
+  }
+  $("lab-arquivo")?.addEventListener("change", (e) => setText("lab-nome-arquivo", e.target.files[0]?.name || "nenhum arquivo escolhido"));
+  labForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const dados = new FormData(labForm), botao = labForm.querySelector("button[type=submit]");
+    if (selecionada) dados.set("amostra", selecionada); // usado so se o TXT vier sem "amostra ="
+    botao.disabled = true; avisoLab("Enviando o laudo…");
+    try {
+      const r = await fetch(labForm.action, { method: "POST", body: dados, headers: { Accept: "application/json", "X-CSRFToken": dados.get("csrfmiddlewaretoken") } });
+      const resp = await r.json().catch(() => ({}));
+      if (!r.ok) { avisoLab(resp.erro || `Não foi possível enviar (erro ${r.status}).`, true); return; }
+      avisoLab([`Laudo da amostra "${resp.amostra}" salvo.`, ...(resp.avisos || [])].join(" "));
+      labForm.reset(); setText("lab-nome-arquivo", "nenhum arquivo escolhido");
+      await carregarAmostras();
+      if (amostrasDados?.amostras.some((a) => a.id === resp.amostra)) selecionar(resp.amostra);
+      $("laboratorio")?.scrollIntoView({ block: "start" });
+    } catch (erro) {
+      avisoLab("Não foi possível enviar o laudo: confira a conexão e tente de novo.", true);
+      console.error(erro);
+    } finally { botao.disabled = false; }
+  });
+
   function renderTudoAmostras() {
-    renderAmostra(); renderAssinatura(); renderIndicadoresAmostra(); renderComparacaoAmostras(); renderSemelhancaAmostra();
+    renderAmostra(); renderAssinatura(); renderIndicadoresAmostra(); renderLaboratorio(); renderComparacaoAmostras(); renderSemelhancaAmostra();
     renderDiluicaoAmostras(); renderHistoricoPontos(); renderTabelaAmostras();
   }
   function selecionar(id) { selecionada = id; if ($("am-select")) $("am-select").value = id; renderTudoAmostras(); }
@@ -962,9 +1054,9 @@
       : data.aparelho_parado ? `aparelho sem enviar há ${data.minutos_sem_enviar} min` : "medição mais recente";
     if ($("data-updated")) $("data-updated").textContent = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(data.atualizado_em ? new Date(data.atualizado_em) : new Date());
     updateSampleFilter(data.leituras || []);
-    renderReadings(data); renderTurbidityChart(data.chart_data || []); renderSpectrumChart(data); renderLiveChart(data);
+    renderReadings(data); renderTurbidityChart(data.chart_data || []); renderEspectro(data); renderLiveChart(data);
     renderSeriesChart(data.serie || []); renderScatterChart(data.comparacao || []); renderColetasTable();
-    renderObservacoes(data); renderSpectralTime(data.serie || []);
+    renderObservacoes(data);
     ultimosDados = data;
     firstRender = false;
   }

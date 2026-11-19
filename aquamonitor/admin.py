@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Coleta, Leitura
+from .models import AnaliseLaboratorio, Coleta, Leitura
 
 
 @admin.register(Coleta)
@@ -28,3 +28,10 @@ class LeituraAdmin(admin.ModelAdmin):
     search_fields = ("amostra",)
     date_hierarchy = "medido_em"
     readonly_fields = ("recebido_em", "dados_originais")
+
+
+@admin.register(AnaliseLaboratorio)
+class AnaliseLaboratorioAdmin(admin.ModelAdmin):
+    list_display = ("amostra", "data_coleta", "laboratorio", "turbidez_ntu", "ph", "enviado_em")
+    search_fields = ("amostra", "laboratorio")
+    readonly_fields = ("enviado_em", "arquivo")

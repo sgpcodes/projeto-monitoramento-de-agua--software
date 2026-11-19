@@ -12,4 +12,6 @@ urlpatterns = [
     path("api/historico/", views.historico, name="historico"),
     path("api/amostras/", views.amostras, name="amostras"),
     path("api/leituras/", api.receber_leitura, name="receber_leitura"),
+    path("api/laboratorio/", views.enviar_laboratorio, name="enviar_laboratorio"),
+    path("api/laboratorio/modelo/", views.modelo_laboratorio, name="modelo_laboratorio"),
 ]

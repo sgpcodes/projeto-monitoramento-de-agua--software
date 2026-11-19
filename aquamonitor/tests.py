@@ -4,7 +4,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Coleta, Leitura
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from . import laboratorio
+from .models import AnaliseLaboratorio, Coleta, Leitura
 from .serializers import CHANNELS
 
 
@@ -223,7 +226,7 @@ class DashboardDataTests(TestCase):
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     })
     def test_pages_open(self):
-        for nome, texto in [("dashboard", "Assinatura espectral atual"), ("pagina_amostras", "Semelhança com as referências"),
+        for nome, texto in [("dashboard", "Quanta luz de cada cor atravessa a água"), ("pagina_amostras", "Aparelho × laboratório"),
                             ("pagina_historico", "Registros recebidos"), ("pagina_guia", "Como interpretar")]:
             resposta = self.client.get(reverse(nome))
             self.assertEqual(resposta.status_code, 200, nome)
@@ -436,3 +439,77 @@ class DashboardDataTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("erro", response.json())
+
+
+class LaboratorioTests(TestCase):
+    """Laudo de laboratorio em TXT: modelo, leitura e comparacao com o aparelho."""
+
+    def _medir(self, nome, pct, turbidez, ph=None, tipo="amostra"):
+        coleta, _ = Coleta.objects.get_or_create(data_coleta=timezone.localdate())
+        for i in range(1 if tipo == "branco" else 3):
+            Leitura.objects.create(
+                collection=coleta, tipo=tipo, amostra=nome, led="frente", replica=i + 1,
+                medido_em=timezone.now() - timedelta(minutes=i + (10 if tipo == "branco" else 0)), ganho=64, atime=0, astep=0, n=1,
+                saturado=False, media={c: 20000 for c in CHANNELS}, desvio={}, dados_originais={},
+                turbidez=turbidez, ph=ph, cores=[{"porcentagem": p} for p in pct], diagnostico={},
+            )
+
+    def _enviar(self, texto, **extra):
+        arquivo = SimpleUploadedFile("laudo.txt", texto.encode("utf-8"), content_type="text/plain")
+        return self.client.post(reverse("enviar_laboratorio"), {"arquivo": arquivo, **extra})
+
+    def test_template_is_filled_with_the_sample_and_reads_back(self):
+        resposta = self.client.get(reverse("modelo_laboratorio"), {"amostra": "lagoa_p1"})
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn('filename="laudo-lagoa_p1.txt"', resposta["Content-Disposition"])
+        texto = resposta.content.decode()
+        self.assertIn("amostra = lagoa_p1", texto)
+        with self.assertRaisesMessage(ValueError, "Nenhum resultado"):
+            laboratorio.ler(texto)  # modelo em branco: falta preencher
+        dados, avisos = laboratorio.ler(texto.replace("turbidez_ntu = ", "turbidez_ntu = 12,5 NTU")
+                                        .replace("cianobacterias_cel_ml = ", "cianobacterias_cel_ml = 50.000"))
+        self.assertEqual(dados["turbidez_ntu"], 12.5)
+        self.assertEqual(dados["cianobacterias_cel_ml"], 50000)
+        self.assertEqual(avisos, [])
+
+    def test_errors_point_to_the_line(self):
+        with self.assertRaisesMessage(ValueError, "Linha 2 (ph)"):
+            laboratorio.ler("amostra = lagoa_p1\nph = abc")
+        with self.assertRaisesMessage(ValueError, "Falta o nome da amostra"):
+            laboratorio.ler("ph = 7")
+        resposta = self._enviar("amostra = lagoa_p1\nph = 15")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("pH", resposta.json()["erro"])
+
+    def test_upload_compares_with_the_device(self):
+        self._medir("agua_limpa", [100] * 8, {"ntu": None}, tipo="branco")
+        sensor = {"tensao_v": 4.0, "status": "ok", "calibracao_status": "pendente", "ntu_experimental": 30.0}
+        self._medir("lagoa_p1", [40, 35, 60, 75, 76, 62, 58, 52], sensor, ph={"valor": 7.2, "status": "ok"})
+        hoje = timezone.localdate().strftime("%d/%m/%Y")
+        texto = (f"amostra = lagoa_p1\ndata_coleta = {hoje}\nlaboratorio = Lab Teste\nturbidez_ntu = 25\n"
+                 "ph = 7,0\nclorofila_a_ug_l = 45\ncampo_estranho = 1\n")
+        resposta = self._enviar(texto)
+        self.assertEqual(resposta.status_code, 201, resposta.content)
+        self.assertTrue(any("campo_estranho" in a for a in resposta.json()["avisos"]))
+        self._enviar(texto.replace("turbidez_ntu = 25", "turbidez_ntu = 28"))  # mesmo dia: substitui
+        self.assertEqual(AnaliseLaboratorio.objects.count(), 1)
+
+        p1 = next(a for a in self.client.get(reverse("amostras")).json()["amostras"] if a["id"] == "lagoa_p1")
+        self.assertAlmostEqual(p1["ph"], 7.2)
+        self.assertEqual(len(p1["porcentagens"]), 8)
+        lab = p1["laboratorio"]
+        linhas = {l["id"]: l for l in lab["linhas"]}
+        self.assertEqual(linhas["turbidez_ntu"]["laboratorio"], 28)
+        self.assertEqual(linhas["turbidez_ntu"]["aparelho"], 30.0)  # estimativa da curva
+        self.assertTrue(linhas["turbidez_ntu"]["concorda"])  # os dois ate 40 NTU (classe 1)
+        self.assertIn("ponto de calibração", linhas["turbidez_ntu"]["nota"])
+        self.assertTrue(linhas["ph"]["concorda"])  # 7,2 x 7,0
+        self.assertEqual(linhas["clorofila_a_ug_l"]["nivel_laboratorio"], "alto")  # acima de 30 ug/L
+        self.assertIsNone(lab["aviso_data"])
+        self.assertIn("parâmetros com o mesmo resultado", lab["resumo"])
+
+    def test_upload_for_unknown_sample_warns(self):
+        resposta = self._enviar("ph = 7", amostra="lagoa_p9")  # sem "amostra =": usa a selecionada
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.json()["amostra"], "lagoa_p9")
+        self.assertIn("Ainda não há medição", resposta.json()["avisos"][0])
